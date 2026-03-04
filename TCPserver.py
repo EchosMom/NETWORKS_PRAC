@@ -28,7 +28,7 @@ def handle_client(clientSocket):
 
 """broadcast to all except sender"""
 def broadcast(msg, senderSocket):
-    for sock in clientSockets[:]:   #iterate over copy of list
+    for sock in clientSockets[:]:   #iterate over copy of list (safer)
         if sock != senderSocket:
             try:
                 sock.send(msg)
@@ -38,7 +38,7 @@ def broadcast(msg, senderSocket):
 
 """start chat server"""
 def start_server():
-    serverSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)        #create TCP socket
+    serverSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)        
     serverSocket.bind((serverAddress, serverPort))
     serverSocket.listen()
 
@@ -54,6 +54,5 @@ def start_server():
         thread.daemon = True        #thread closes when main program exits.
         thread.start()
 
-"""main method to start server"""
 if __name__ == "__main__":
     start_server()
