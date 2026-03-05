@@ -1,7 +1,9 @@
 """handles connections"""
 import socket
 import threading
+import os
 import protocol     #protocol module
+import ProtocolUtils #protocol utils for encoding/decoding messages
 
 serverAddress = "127.0.0.1"  # Localhost
 serverPort = 1500
@@ -44,6 +46,8 @@ def start_server():
 
     print("Server is listening on {}:{}".format(serverAddress, serverPort))
 
+    manager = ClientConnectionManager( dataFile = "serverData") #manage clients and data
+
     while True:     #server always-on
         clientSocket, clientAddress = serverSocket.accept()
         print("New connection from {}:{}".format(clientAddress[0], clientAddress[1]))
@@ -53,6 +57,48 @@ def start_server():
         thread =threading.Thread(target=handle_client, args=(clientSocket,))
         thread.daemon = True        #thread closes when main program exits.
         thread.start()
+
+
+#healper class to track client connections
+#handles file storage for usernames and groups
+class ClientConnectionManager:
+    def __init__(self, dataFile="defultStr"):
+        self.clients = [] #track clients by username
+        self.client_info = {} #track client info by socket
+        self.lock = threading.Lock() #lock for thread safety
+        self.dataFile = dataFile 
+        self.usernameFile = os.path.join(dataFile, "usernames.txt") #file to store usernames
+    
+    #user registration and login
+    def register(self, username, pasword):
+        with self.lock:
+            if self.usernameExists(username):
+                with open(self.usernameFile, "a") as f:
+                    f.write(f"{username +('_1')}:{pasword}\n")  #add counter at later stage
+                return True, "Registration successful."
+            with open(self.usernameFile, "a") as f:
+                f.write(f"{username}:{pasword}\n")
+            return True, "Registration successful."
+
+    def usernameExists(self, username):
+        if not os.path.exists(self.usernameFile):
+            return False
+        with open(self.usernameFile, "r") as f:
+            for line in f:
+                if line.split(":")[0] == username:
+                    return True
+        return False
+
+
+
+    #active session management
+    def addClient(self, socket, username):
+        with self.lock:
+            if username in self.clients:
+                username += "_1" #simple way to avoid duplicates, could be improved
+            self.clients.append(username)
+            self.client_info[socket] = {"username": username}
+            print(f"Client {username} connected.")
 
 if __name__ == "__main__":
     start_server()

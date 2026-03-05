@@ -1,4 +1,5 @@
-"""builds messages"""
+#defines format for protocol messages
+
 from wsgiref import headers
 
 

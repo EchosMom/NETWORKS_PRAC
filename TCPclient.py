@@ -45,5 +45,6 @@ def receive_reply(clientSocket):
             print("Error: reply not received.")
             break
 
+
 if __name__ == '__main__':
     connect_client()
