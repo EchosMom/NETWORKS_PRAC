@@ -8,6 +8,14 @@ class MessageType:
     CONTROL = "CONTROL"
     DATA = "DATA"
 
+    #adding message types for P2P
+    CHAT = "CHAT"
+    P2P_REQ = "P2P_REQ" 
+    P2P_ACC = "P2P_ACC"
+    P2P_REJ = "P2P_REJ"
+    P2P_OFFER = "P2P_OFFER"     #for connection details
+    P2P_ICE = "P2P_ICE"     # for NAT traversal
+
 class Messages:
         #command messages
         LOGIN = "LOGIN"
