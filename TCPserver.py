@@ -79,7 +79,18 @@ class ClientConnectionManager:
             with open(self.usernameFile, "a") as f:
                 f.write(f"{username}:{pasword}\n")
             return True, "Registration successful."
-
+        
+    def authenticate(self, username, password):
+        with self.lock:
+            if not os.path.exists(self.usernameFile):
+                return False
+            with open(self.usernameFile, "r") as f:
+                for line in f:
+                    stored_username, stored_password = line.strip().split(":")
+                    if stored_username == username and stored_password == password:
+                        return True
+        return False
+    
     def usernameExists(self, username):
         if not os.path.exists(self.usernameFile):
             return False

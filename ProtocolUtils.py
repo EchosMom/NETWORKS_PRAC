@@ -61,7 +61,7 @@ class ProtocolHandler:
         if message.is_login():
             username = message.headers.get("Username")
             password = message.headers.get("Password")
-            success, response = self.clientManager.register(username, password)
+            success, response = self.clientManager.authenticate(username, password)
             replyType = protocol.Messages.ACK if success else protocol.Messages.ERROR
             reply = ProtocolUtils(headers={"MessageType": replyType, "Message": response}, body=b"").encode()
             clientSocket.send(reply)
