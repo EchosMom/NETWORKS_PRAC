@@ -8,6 +8,15 @@ import ProtocolUtils
 serverAddress = "127.0.0.1"  # Localhost
 serverPort = 1500
 peerPort = 1600
+mediaPort = 1700 #this is for sending media files, UDP_port
+chunkSize = 65536 #bytes per UDP packet
+
+#UDP sockets
+mediaSendSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+mediareceiveSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+mediareceiveSocket.bind(("0.0.0.0", mediaPort))
+
+
 
 """Makes connection with server or the peer."""
 def connect_client():
