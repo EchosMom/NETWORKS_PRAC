@@ -2,6 +2,8 @@
 
 import socket
 import threading
+import protocol
+import ProtocolUtils
 
 serverAddress = "127.0.0.1"  # Localhost
 serverPort = 1500
@@ -40,7 +42,13 @@ def send_request(clientSocket):
             clientSocket.close()
             break
         try:
-            clientSocket.send(request.encode())
+            rq = ProtocolUtils(
+                headers={
+                    "messageType": protocol.MessageType.COMMAND,
+                    "message": request,
+                    "sender": "client",
+                    "recipient": serverAddress})
+            clientSocket.send(rq.encode())
         except:
               print("Error: request not sent.")
               break
@@ -49,12 +57,13 @@ def send_request(clientSocket):
 def receive_reply(clientSocket):
     while True:
         try:
-            reply = clientSocket.recv(1024)
+            reply = clientSocket.recv(protocol.MAX_MESSAGE_BODY_SIZE)
             if not reply:
                 print("Connection ended.")
                 break
             else:
-                print(reply.decode())
+                rp = ProtocolUtils.decode(reply)
+                print(rp.body.decode())
         except:
             print("Error: reply not received.")
             break
@@ -75,8 +84,15 @@ def send_message():
                     if message == "exit":
                         peerSocket.close()
                         break
-                    else:   
-                        peerSocket.send(message.encode())        
+                    else:
+                        msg = ProtocolUtils(
+                        headers={
+                            "messageType": protocol.MessageType.CHAT,
+                            "message": protocol.Messages.TEXT,
+                            "sender": "peer",
+                            "recipient": peerIP},
+                             body= message.encode())
+                        peerSocket.send(msg.encode())        
                 except:
                     print("Error: message not sent.")
                     peerSocket.close()
@@ -89,11 +105,12 @@ def receive_message(listenSocket):
     while True:  # Loops to accept connection and message from different peers
         try:
             new_socket, new_address = listenSocket.accept()
-            message = new_socket.recv(1024)
+            message = new_socket.recv(protocol.MAX_MESSAGE_BODY_SIZE)
             if not message:
                 print("Connection ended.")
             else:
-                print(message.decode())
+                msg = ProtocolUtils.decode(message)
+                print(msg.body.decode())
                 new_socket.close()
         except:
             print("Error: message not received.")
