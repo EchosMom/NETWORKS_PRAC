@@ -145,4 +145,5 @@ def start_server():
         thread.daemon = True        #thread closes when main program exits.
         thread.start()
 
-
+if __name__ == "__main__":
+    start_server()
