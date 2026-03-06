@@ -54,7 +54,11 @@ class Protocol:
 
       @staticmethod #create message from specified protocol
       def encodeMessage(type, message, sender, **kwargs):
-         headers = { f"MessageType: {type}", f"Message: {message}", f"Sender: {sender}" }
+         headers = [
+            f"MessageType: {type}",
+            f"Message: {message}",
+            f"Sender: {sender}"
+         ]
 
          #add any additional headers from kwargs
          for key, value in kwargs.items():
@@ -66,18 +70,11 @@ class Protocol:
 
          #if data message, include body
          body = kwargs.get('body', "")
-         if body:
-             return headerString.encode() + body.encode() if isinstance(body, str) else headerString.encode() + body #combine headers and body into one byte string
-         else:
-            return headerString.encode() #just return headers as byte string if no body
-         
-            if isinstance(body, str):
-                        return headerString.encode() + body.encode()
-            else:  # body is already bytes
-                return headerString.encode() + body
-         else:
-            return headerString.encode()  # returns in all cases  
-                
+         if isinstance(body, str):
+            body = body.encode()
+        
+         return headerString.encode() + b"\n\n" + body
+                         
       @staticmethod #devide message into headers and body
       def decodeMessage(data):
         try:

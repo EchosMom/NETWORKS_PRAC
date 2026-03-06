@@ -8,7 +8,7 @@ class ProtocolUtils:
         self.body = body
     
     @property
-    def messageType(self):
+    def MessageType(self):
         return self.headers.get("MessageType")
     
     @property
@@ -25,7 +25,7 @@ class ProtocolUtils:
     
     def encode(self):
         #convert bytes for sending
-        return protocol.Protocol.encodeMessage(self.messageType, self.message, self.sender, Recipient=self.recipient, body=self.body,**{k.upper(): v for k, v in self.headers.items() if k not in ["MessageType", "Message", "Sender", "Recipient"]})
+        return protocol.Protocol.encodeMessage(self.MessageType, self.message, self.sender, Recipient=self.recipient, body=self.body,**{k.upper(): v for k, v in self.headers.items() if k not in ["MessageType", "Message", "Sender", "Recipient"]})
 
     @classmethod
     def decode(cls, data):
@@ -67,7 +67,7 @@ class ProtocolHandler:
             reply = ProtocolUtils(headers={"MessageType": replyType, "Message": response}, body=b"").encode()
             clientSocket.send(reply)
         elif message.is_text():
-            recipient = message.recipient
+            Recipient = message.recipient
             text = message.body.decode()  #assuming body is bytes
             #send text to recipient using client manager to find their socket, etc.
 
@@ -97,7 +97,7 @@ class ProtocolHandler:
                 text = message.body.decode()  #assuming body is bytes
                 #send text to recipient using client manager to find their socket, etc.
             elif command == protocol.Messages.GROUP_TEXT:
-                groupID = message.headers.get("Recipient")  #using recipient field to specify groupID for group messages
+                groupID = message.headers.get("Recipient")  #using Recipient field to specify groupID for group messages
                 text = message.body.decode()
                 #send text to all members of the group using group manager to find members and client manager to find their sockets, etc.
 
