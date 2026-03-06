@@ -4,6 +4,7 @@ import threading
 import os
 import protocol         #protocol module
 import ProtocolUtils    #protocol utils for encoding/decoding messages
+import ClientConnectionManager
 import json             #for structured msgs
 
 serverAddress = "127.0.0.1"  # Localhost
