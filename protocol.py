@@ -67,6 +67,10 @@ class Protocol:
          #if data message, include body
          body = kwargs.get('body', "")
          if body:
+             return headerString.encode() + body.encode() if isinstance(body, str) else headerString.encode() + body #combine headers and body into one byte string
+         else:
+            return headerString.encode() #just return headers as byte string if no body
+         
             if isinstance(body, str):
                         return headerString.encode() + body.encode()
             else:  # body is already bytes
