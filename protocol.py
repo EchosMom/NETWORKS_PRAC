@@ -38,10 +38,11 @@ class ErrorCodes:
 
 class Protocol:
       TCP_PORT = 1500   
-      #UDP_PORT 
+      UDP_PORT  = 1501
       MAX_HEADER_SIZE = 4096 #wont allow message header longer than 4kb
       MAX_MESSAGE_BODY_SIZE = 65536 #wont allow message longer than 64kb taken from common lengths reccomended in early internet
       #UDP packet size
+      MAX_UDP_PACKET_SIZE = 65507 #max size of UDP packet payload, taken from standard limits for UDP datagrams
 
       @staticmethod #create message from specified protocol
       def encodeMessage(type, message, sender, **kwargs):
