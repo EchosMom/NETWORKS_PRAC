@@ -7,6 +7,7 @@ import os
 # add current directory to path so imports work
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
+from ClientConnectionManager import ClientConnectionManager
 import protocol         #protocol module
 import ProtocolUtils    #protocol utils for encoding/decoding messages
 import json             #for structured msgs
