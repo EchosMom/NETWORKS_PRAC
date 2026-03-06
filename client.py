@@ -30,10 +30,7 @@ def loginToServer():
         print("Error: Connection failed.")
         return None
 
-
-    #thread to listen for sever message
-    threading.Thread(target=receive_reply, args=(clientSocket,), daemon=True).start()
-    
+   
     usernameInput = input("Enter username: ")
     passwordInput = input("Enter password: ")
 
@@ -50,6 +47,9 @@ def loginToServer():
     )
     clientSocket.send(login_msg.encode())
 
+    #thread to listen for sever message
+    threading.Thread(target=receive_reply, args=(clientSocket,), daemon=True).start()
+    
     # Wait for server reply, if login fails, close socket and return None
     while True:
         replyBytes = clientSocket.recv(protocol.Protocol.MAX_MESSAGE_BODY_SIZE)
@@ -60,7 +60,7 @@ def loginToServer():
         reply = ProtocolUtils.decode(replyBytes)
         if reply.message == protocol.Messages.ACK:
             print(f"Login successful: {reply.body.decode()}")
-            return usernameInput, clientSocket
+            return (usernameInput, clientSocket)
         elif reply.message == protocol.Messages.ERROR:
             print(f"Login failed: {reply.body.decode()}")
             return None

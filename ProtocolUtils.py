@@ -49,6 +49,7 @@ class ProtocolUtils:
     def is_error(self):
         return self.message == protocol.Messages.ERROR
 
+
 class ProtocolHandler:
 #handlesparsing incoming messages, esentially messge prosesing
     def __init__(self, clientManager, groupManager):

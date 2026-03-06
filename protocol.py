@@ -68,7 +68,8 @@ class Protocol:
          body = kwargs.get('body', "")
          if body:
              return headerString.encode() + body.encode() if isinstance(body, str) else headerString.encode() + body #combine headers and body into one byte string
-             return headerString.encode() #just return headers as byte string if no body
+         else:
+            return headerString.encode() #just return headers as byte string if no body
          
       @staticmethod #devide message into headers and body
       def decodeMessage(data):
