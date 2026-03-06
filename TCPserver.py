@@ -1,7 +1,13 @@
 """handles connections"""
 import socket
 import threading
+
+import sys
 import os
+# add current directory to path so imports work
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+from ClientConnectionManager import ClientConnectionManager
 import protocol         #protocol module
 import ProtocolUtils    #protocol utils for encoding/decoding messages
 import json             #for structured msgs
@@ -140,5 +146,7 @@ def start_server():
         thread.daemon = True        #thread closes when main program exits.
         thread.start()
 
+if __name__ == "__main__":
+    start_server()
 
 ## ClientConnectionManager class moved to its own file for better organization, see ClientConnectionManager.py
