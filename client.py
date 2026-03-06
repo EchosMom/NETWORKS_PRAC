@@ -89,7 +89,7 @@ def send_request(clientSocket, username):
 def receive_reply(clientSocket):
     while True:
         try:
-            reply = clientSocket.recv(protocol.MAX_MESSAGE_BODY_SIZE)
+            reply = clientSocket.recv(protocol.Protocol.MAX_MESSAGE_BODY_SIZE)
             if not reply:
                 print("Server disconnected.")
                 break
