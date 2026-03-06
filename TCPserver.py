@@ -7,7 +7,7 @@ import os
 # add current directory to path so imports work
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from ClientConnectionManager import ClientConnectionManager
+import ClientConnectionManager
 import protocol         #protocol module
 import ProtocolUtils    #protocol utils for encoding/decoding messages
 import json             #for structured msgs
@@ -127,7 +127,7 @@ def start_server():
 
     print("Server is listening on {}:{}".format(serverAddress, serverPort))
 
-    manager = ClientConnectionManager( dataFile = "serverData") #manage clients and data
+    manager = ClientConnectionManager.ClientConnectionManager( dataFile = "serverData") #manage clients and data
 
     while True:     #server always-on
         clientSocket, clientAddress = serverSocket.accept()
@@ -148,5 +148,4 @@ def start_server():
 
 if __name__ == "__main__":
     start_server()
-
 ## ClientConnectionManager class moved to its own file for better organization, see ClientConnectionManager.py
