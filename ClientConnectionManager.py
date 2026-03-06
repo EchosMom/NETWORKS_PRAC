@@ -46,6 +46,3 @@ class ClientConnectionManager:
                 if line.split(":")[0] == username:
                     return True
         return False
-
-if __name__ == "__main__":
-    TCPserver.start_server()
