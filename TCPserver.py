@@ -28,36 +28,60 @@ def handle_client(clientSocket):
             if not data:     #empty msg = client disconnected
                 break
             
-            #parse json msg
-            try:
-                mess = json.loads(data)
-                msg_type = mess.get("type")
-
-                #noraml chat msg
-                if msg_type == protocol.MessageType.CHAT:
-                    broadcast(data, clientSocket)
-
-                elif msg_type == protocol.MessageType.P2P_REQ:
-                    handle_p2p_req(clientSocket, mess)
-
-                elif msg_type == protocol.MessageType.P2P_OFFFER:
-                    forward_to_target(mess)
-
-                elif msg_type == protocol.MessageType.P2P_ICE:
-                    forward_to_target(mess)
-                
-                #login handling
-                elif msg_type == protocol.Messages.LOGIN:
-                    username = mess.get("username")
-                    clientInfo[clientSocket]["username"] = username
-                    print(f"{username} logged in")
-
-            except json.JSONDecodeError:
-                broadcast(data, clientSocket)
             
+        try:
+         mess = ProtocolUtils.decode(data)
+         msg_type = mess.messageType
+         msg_content = mess.message
 
+        #noraml chat msg
+         if msg_type == protocol.MessageType.CHAT:
+            broadcast(mess.encode, clientSocket)
+
+         elif msg_type == protocol.MessageType.P2P_REQ:
+            handle_p2p_req(clientSocket, mess)
+
+         elif msg_type == protocol.MessageType.P2P_OFFFER:
+            forward_to_target(mess)
+
+         elif msg_type == protocol.MessageType.P2P_ICE:
+            forward_to_target(mess)
+        
+        #login handling
+         elif msg_type == protocol.Messages.LOGIN:
+            username = mess.headers.get("Username")
+            password = mess.headers.get("Password")
+            auth_success = ClientConnectionManager.authenticate(username, password)
+
+            if auth_success:
+                clientInfo[clientSocket]["username"] = username
+                print(f"{username} logged in")
+                reply = ProtocolUtils(
+                    headers={
+                        "MessageType": protocol.MessageType.COMMAND,
+                        "Message": protocol.Messages.ACK,
+                        "Sender": "server",
+                        "Recipient": username
+                    },
+                    body=b"Login successful."
+                )
+            else:
+                print(f"Failed login attempt for user: {username}")
+                reply = ProtocolUtils(
+                    headers={
+                        "MessageType": protocol.MessageType.COMMAND,
+                        "Message": protocol.Messages.ERROR,
+                        "Sender": "server",
+                        "Recipient": username
+                    },
+                    body=b"Invalid username or password."
+                )
+        clientSocket.send(reply.encode())
     except Exception as e:
-            print("Error with client: ", e)
+        print("Error handling client message: ", e)
+    except Exception as e:
+        print("Error processing message: ", e)
+    
     finally:
         disconnect_client(clientSocket)
 
