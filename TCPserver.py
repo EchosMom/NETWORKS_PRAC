@@ -132,7 +132,7 @@ def start_server():
         clientInfo[clientSocket] = {
             "address": clientAddress,
             "username": None,            #will be set after login
-            "UDPport": 1501              # add udp port for p2p
+            "UDP_PORT": 1501              # add udp port for p2p
         }
 
         thread = threading.Thread(target=handle_client, args=(clientSocket,))
