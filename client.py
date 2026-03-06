@@ -13,6 +13,7 @@ serverPort = 1500
 peerPort = 1600
 mediaPort = 1700 #this is for sending media files, UDP_port
 chunkSize = 65536 #bytes per UDP packet
+MAX_MESSAGE_BODY_SIZE = 65536
 
 #UDP sockets
 mediaSendSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
