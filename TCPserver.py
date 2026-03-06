@@ -7,7 +7,7 @@ import ProtocolUtils    #protocol utils for encoding/decoding messages
 import json             #for structured msgs
 
 serverAddress = "127.0.0.1"  # Localhost
-serverPort = 1500               # chatgpt says to use protocol.Protocol.TCP_PORT
+serverPort = 1500     #tcp port from protocol         
 
 clientSockets = []          #track connected clients
 clientInfo = {}             #track clients with info - socket -> usrname, p2p_port, public_ip}
