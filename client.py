@@ -153,7 +153,7 @@ def receive_peer_connections(listenSocket):
 def handle_peer_connection(peerSocket):
     while True:  # Loops to receive messages from the same peer
         try:
-            message = peerSocket.recv(protocol.MAX_MESSAGE_BODY_SIZE)
+            message = peerSocket.recv(protocol.Protocol.MAX_MESSAGE_BODY_SIZE)
             if not message:
                 print("Peer disconnected.")
                 break
