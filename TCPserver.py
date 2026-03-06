@@ -10,7 +10,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 import ClientConnectionManager
 import protocol         #protocol module
 import ProtocolUtils    #protocol utils for encoding/decoding messages
-import json             #for structured msgs
+
 
 serverAddress = "127.0.0.1"  # Localhost
 serverPort = 1500               # chatgpt says to use protocol.Protocol.TCP_PORT
@@ -87,8 +87,8 @@ def handle_client(clientSocket):
 
 """handle p2p request"""
 def handle_p2p_req(requestor_socket, mess):
-    target_usr = mess.get("target")
-    requestor_usr = mess.get("from")
+    target_usr = mess.headers.get("Recipient")
+    requestor_usr = mess.headers.get("Sender")
 
     #find targets socket
     targetSocket = None
@@ -104,21 +104,25 @@ def handle_p2p_req(requestor_socket, mess):
             "from": requestor_usr,
             "data": mess.get("data", {})
         }
-        targetSocket.send(json.dumps(response).encode())
+        targetSocket.send((mess).encode())
 
     else:
         error_msg = {
             "type": protocol.MessageType.P2P_REJ,
             "reason": "User not online"
         }
-        requestor_socket.send(json.dumps(error_msg).encode())
+        requestor_socket.send((error_msg).encode())
 
 """forward p2p conn data to target client"""
 def forward_to_target(mess):
-    target_usr = mess.get("to")
+    target_usr = mess.recipient
     for sock, info in clientInfo.items():
-        sock.send(json.dumps(mess).encode())
-        return
+        if info.get("username") == target_usr:
+            try:
+                sock.send(mess.encode())
+            except Exception as e:
+                print(f"Error forwarding message to {target_usr}: ", e)
+            break
 
 """broadcast to all except sender"""
 def broadcast(msg, senderSocket):
