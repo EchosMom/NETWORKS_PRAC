@@ -59,9 +59,9 @@ class Protocol:
          #add any additional headers from kwargs
          for key, value in kwargs.items():
             if key != 'body' : #body would be a text massage or binary media being sent
-             headers.add(f"{key}: {value}")
+             headers.append(f"{key}: {value}")
              
-         headers.add("") #add empty line to indicate end of headers
+         headers.append("") #add empty line to indicate end of headers
          headerString = "\n".join(headers)
 
          #if data message, include body
@@ -71,6 +71,13 @@ class Protocol:
          else:
             return headerString.encode() #just return headers as byte string if no body
          
+            if isinstance(body, str):
+                        return headerString.encode() + body.encode()
+            else:  # body is already bytes
+                return headerString.encode() + body
+         else:
+            return headerString.encode()  # returns in all cases  
+                
       @staticmethod #devide message into headers and body
       def decodeMessage(data):
         try:
