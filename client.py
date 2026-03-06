@@ -168,7 +168,7 @@ def handle_peer_connection(peerSocket):
 
 
 if __name__ == '__main__':
-    ogin_result = login_to_server()
+    login_result = loginToServer()
     if login_result is None:
         print("Cannot continue without login.")
         exit()
