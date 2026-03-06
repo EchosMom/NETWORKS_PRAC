@@ -1,1 +1,4 @@
-ZukoCat:
+ZukoCat:passwaord123
+EchoCat:passwaord321
+RubyDog:pswrd123
+BirbBird:pswrd321
