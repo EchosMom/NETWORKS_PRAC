@@ -1,7 +1,12 @@
 """handles connections"""
 import socket
 import threading
+
+import sys
 import os
+# add current directory to path so imports work
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
 import protocol         #protocol module
 import ProtocolUtils    #protocol utils for encoding/decoding messages
 import ClientConnectionManager
