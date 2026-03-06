@@ -49,17 +49,24 @@ def loginToServer():
     
     # Wait for server reply, if login fails, close socket and return None
     while True:
-        replyBytes = clientSocket.recv(protocol.Protocol.MAX_MESSAGE_BODY_SIZE)
+        replyBytes = clientSocket.recv(4096)
         if not replyBytes:
             print("Server disconnected.")
             clientSocket.close()
             return None
         reply = ProtocolUtils.decode(replyBytes)
-        if reply.Message == protocol.Messages.ACK:
+        if reply is None:  #test
+            print("Invalid server response")
+            continue
+
+        print("received: " + reply.message)     #test
+
+        if reply.message == protocol.Messages.ACK:
             print(f"Login successful: {reply.body.decode()}")
             return (usernameInput, clientSocket)
-        elif reply.Message == protocol.Messages.ERROR:
+        if reply.message == protocol.Messages.ERROR:
             print(f"Login failed: {reply.body.decode()}")
+            clientSocket.close()
             return None
 
 """Sends requests to the server."""
@@ -121,6 +128,7 @@ def send_Message(username):
                             while chunk:
                                 mediaSendSocket.sendto(chunk, (peerIP, mediaPort))
                                 chunk = f.read(chunkSize)
+                        mediaSendSocket.sendto(b"__END__", (peerIP, mediaPort))
                     else:
                         msg = ProtocolUtils(
                         headers={
@@ -177,10 +185,18 @@ if __name__ == '__main__':
     # Start UDP media receiver
     #threading.Thread(target=receive_media, args=(udpRecvSocket,), daemon=True).start()
     def receive_media():
+        filename = "received_media.bin"   
+        file = open(filename, "wb")       
+        print("Receiving media...")
+
         while True:
             data, addr = mediareceiveSocket.recvfrom(chunkSize)
-            print(f"[MEDIA] Received {len(data)} bytes from {addr}")
-
+            if data == b"__END__":        
+                break
+            file.write(data)              
+        file.close()
+        print(f"Media saved to {filename}")  
+        
     # Ask user if connecting to peer or server
     choice = input("Connect to server or peer? (s/p): ").lower()
     if choice == "s":

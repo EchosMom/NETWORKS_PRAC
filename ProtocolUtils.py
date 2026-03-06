@@ -8,7 +8,7 @@ class ProtocolUtils:
         self.body = body
     
     @property
-    def MessageType(self):
+    def message_type(self):
         return self.headers.get("MessageType")
     
     @property
@@ -25,8 +25,14 @@ class ProtocolUtils:
     
     def encode(self):
         #convert bytes for sending
-        return protocol.Protocol.encodeMessage(self.MessageType, self.message, self.sender, Recipient=self.recipient, body=self.body,**{k.upper(): v for k, v in self.headers.items() if k not in ["MessageType", "Message", "Sender", "Recipient"]})
-
+        return protocol.Protocol.encodeMessage(
+            self.message_type,
+            self.message,
+            self.sender,
+            **self.headers,
+            body=self.body
+        )
+    
     @classmethod
     def decode(cls, data):
         #convert bytes to usable format
@@ -64,7 +70,14 @@ class ProtocolHandler:
             password = message.headers.get("Password")
             success, response = self.clientManager.authenticate(username, password)
             replyType = protocol.Messages.ACK if success else protocol.Messages.ERROR
-            reply = ProtocolUtils(headers={"MessageType": replyType, "Message": response}, body=b"").encode()
+            reply = ProtocolUtils(
+                headers={
+                    "MessageType": protocol.MessageType.CONTROL, 
+                    "Message": protocol.Messages.ACK if success else protocol.Messages.ERROR,
+                    "Sender": "server"
+                }, 
+                body=b"").encode()
+            
             clientSocket.send(reply)
         elif message.is_text():
             Recipient = message.recipient

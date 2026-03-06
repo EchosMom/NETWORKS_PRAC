@@ -1,7 +1,6 @@
 #helper class to track client connections
 import os
 import threading
-import TCPserver
 
 """handles file storage for usernames and groups"""
 class ClientConnectionManager:
@@ -15,27 +14,27 @@ class ClientConnectionManager:
         self.usernameFile = os.path.join(dataFile, "usernames.txt") #file to store usernames
     
     #user registration and login
-    def register(self, username, pasword):
+    def register(self, username, password):
         with self.lock:
             if self.usernameExists(username):
                 username = username + "_1"
 
             with open(self.usernameFile, "a") as f:
-                f.write(f"{username}:{pasword}\n")  #add counter at later stage
+                f.write(f"{username}:{password}\n")  #add counter at later stage
 
             return True, "Registration successful."
                 
     def authenticate(self, username, password):
         with self.lock:
             if not os.path.exists(self.usernameFile):
-                return False
+                return False, "User not found"
             
             with open(self.usernameFile, "r") as f:
                 for line in f:
                     stored_username, stored_password = line.strip().split(":")
                     if stored_username == username and stored_password == password:
-                        return True
-        return False
+                        return True, "Login successful"
+        return False, "Invalid username or password"
     
     def usernameExists(self, username):
         if not os.path.exists(self.usernameFile):
