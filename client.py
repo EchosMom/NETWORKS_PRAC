@@ -37,7 +37,7 @@ def loginToServer():
     usernameInput = input("Enter username: ")
     passwordInput = input("Enter password: ")
 
-    login_msg = ProtocolUtils(
+    login_msg = ProtocolUtils.ProtocolUtils(
         headers={
             "MessageType": protocol.MessageType.COMMAND,
             "Message": protocol.Messages.LOGIN,
