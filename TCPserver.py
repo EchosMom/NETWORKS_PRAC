@@ -9,11 +9,10 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 import protocol         #protocol module
 import ProtocolUtils    #protocol utils for encoding/decoding messages
-import ClientConnectionManager
 import json             #for structured msgs
 
 serverAddress = "127.0.0.1"  # Localhost
-serverPort = 1500     #tcp port from protocol         
+serverPort = 1500               # chatgpt says to use protocol.Protocol.TCP_PORT
 
 clientSockets = []          #track connected clients
 clientInfo = {}             #track clients with info - socket -> usrname, p2p_port, public_ip}
@@ -23,7 +22,8 @@ def handle_client(clientSocket):
     try:
         #receiving msg
         while True:
-            data = clientSocket.recv(1042).decode()    #receive
+            data = clientSocket.recv(1042)    #receive
+                               
             if not data:     #empty msg = client disconnected
                 break
             
@@ -147,3 +147,5 @@ def start_server():
 
 if __name__ == "__main__":
     start_server()
+
+## ClientConnectionManager class moved to its own file for better organization, see ClientConnectionManager.py
