@@ -138,7 +138,7 @@ def send_Message(username):
         if peerIP.lower() == "exit":
             break
         try:
-            send_request(clientSocket, username, peerUsername)
+            send_request(clientSocket, username, peerIP)
         except Exception as e:
             print("Error: P2P request not sent.", e)
             break
