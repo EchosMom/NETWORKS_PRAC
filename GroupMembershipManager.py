@@ -11,6 +11,8 @@ class GroupMembershipManager:
         
   def createGroup(self, groupName, creator):
         with self.lock:
+            if not os.path.exists(self.dataFile):
+                return False
             if self.groupExists(groupName):
                 return False, "Group name already exists."
             groupID = str(uuid.uuid4())[:8]  #short unique ID
