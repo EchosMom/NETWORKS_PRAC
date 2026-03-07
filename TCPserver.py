@@ -8,8 +8,8 @@ import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 import ClientConnectionManager
-import protocol         #protocol module
-import ProtocolUtils    #protocol utils for encoding/decoding messages
+import protocol  #protocol module
+from ProtocolUtils import ProtocolUtils    #protocol utils for encoding/decoding messages
 
 
 serverAddress = "127.0.0.1"  # Localhost
@@ -19,67 +19,71 @@ clientSockets = []          #track connected clients
 clientInfo = {}             #track clients with info - socket -> usrname, p2p_port, public_ip}
 
 """handle individual client connections"""
-def handle_client(clientSocket): 
+def handle_client(clientSocket, manager): 
     try:
         #receiving msg
         while True:
-            data = clientSocket.recv(1042)    #receive
+            data = clientSocket.recv(protocol.Protocol.MAX_MESSAGE_BODY_SIZE)    #receive
                                
             if not data:     #empty msg = client disconnected
                 break
             
-            
-        try:
-            mess = ProtocolUtils.decode(data)
-            msg_type = mess.messageType
-            msg_content = mess.message
+            try:
+                mess = ProtocolUtils.decode(data)
+                msg_type = mess.message_type
+                msg_content = mess.message
+                
+                #login handling
+                if mess.message == protocol.Messages.LOGIN:
+                    username = mess.headers.get("Username")
+                    password = mess.headers.get("Password")
+                    auth_success, response = manager.authenticate(username, password)
 
-            #noraml chat msg
-            if msg_type == protocol.MessageType.CHAT:
-                broadcast(mess.encode, clientSocket)
+                    if auth_success:
+                        clientInfo[clientSocket]["username"] = username
+                        reply = ProtocolUtils(
+                            headers={
+                                "MessageType": protocol.MessageType.CONTROL,
+                                "Message": protocol.Messages.ACK,
+                                "Sender": "server",
+                                "Recipient": username
+                            },
+                            body=response.encode()
+                        )
+                    else:
+                        reply = ProtocolUtils(
+                            headers={
+                                "MessageType": protocol.MessageType.CONTROL,
+                                "Message": protocol.Messages.ERROR,
+                                "Sender": "server",
+                                "Recipient": username
+                            },
+                            body=response.encode()
+                        )
+                    clientSocket.send(reply.encode())
+                    continue
+                
+                #noraml chat msg
+                if msg_type == protocol.MessageType.CHAT:
+                    broadcast(mess.encode(), clientSocket)
 
-            elif msg_type == protocol.MessageType.P2P_REQ:
-                handle_p2p_req(clientSocket, mess)
+                if msg_type == protocol.MessageType.P2P_REQ:
+                    handle_p2p_req(clientSocket, mess)
 
-            elif msg_type == protocol.MessageType.P2P_OFFFER:
-                forward_to_target(mess)
+                if msg_type == protocol.MessageType.P2P_OFFER:
+                    forward_to_target(mess)
 
-            elif msg_type == protocol.MessageType.P2P_ICE:
-                forward_to_target(mess)
-            
-            #login handling
-            elif msg_type == protocol.Messages.LOGIN:
-                username = mess.headers.get("Username")
-                password = mess.headers.get("Password")
-                auth_success = ClientConnectionManager.authenticate(username, password)
+                if msg_type == protocol.MessageType.P2P_ICE:
+                    forward_to_target(mess)
 
-                if auth_success:
-                    clientInfo[clientSocket]["username"] = username
-                    print(f"{username} logged in")
-                    reply = ProtocolUtils(
-                        headers={
-                            "MessageType": protocol.MessageType.COMMAND,
-                            "Message": protocol.Messages.ACK,
-                            "Sender": "server",
-                            "Recipient": username
-                        },
-                        body=b"Login successful."
-                    )
-                else:
-                    print(f"Failed login attempt for user: {username}")
-                    reply = ProtocolUtils(
-                        headers={
-                            "MessageType": protocol.MessageType.COMMAND,
-                            "Message": protocol.Messages.ERROR,
-                            "Sender": "server",
-                            "Recipient": username
-                        },
-                        body=b"Invalid username or password."
-                    )
-            clientSocket.send(reply.encode())
-            
-        except Exception as e:
-            print("Error handling client message: ", e)
+                if msg_content == protocol.Messages.GROUP_TEXT:
+                    groupID = mess.headers.get("Recipient")   
+                    text = mess.body.decode()                 
+                    sender = mess.sender                      
+                    send_group_message(groupID, sender, text) 
+
+            except Exception as e:
+                print("Error handling client message: ", e)
     except Exception as e:
         print("Error processing message: ", e)
     finally:
@@ -99,20 +103,30 @@ def handle_p2p_req(requestor_socket, mess):
             break
 
     if targetSocket:
-        response = {
-            "type": protocol.MessageType.P2P_REQ,
-            "from": requestor_usr,
-            "data": mess.get("data", {})
-        }
-        targetSocket.send((mess).encode())
+        forward_msg = ProtocolUtils(
+            headers={
+                "MessageType": protocol.MessageType.P2P_REQ,    
+                "Message": protocol.Messages.CHAT_REQUEST,      
+                "Sender": requestor_usr,                        
+                "Recipient": target_usr                         
+            },
+            body=mess.body                                      
+        )
+
+        targetSocket.send(forward_msg.encode())                 
 
     else:
-        error_msg = {
-            "type": protocol.MessageType.P2P_REJ,
-            "reason": "User not online"
-        }
+        error_msg = ProtocolUtils(
+            headers={
+            "MessageType": protocol.MessageType.CONTROL,
+            "Message":  protocol.Messages.ERROR,
+            "Sender": "server",
+            "Recipient": requestor_usr
+            },
+            body=b"User not online"
+        )
         requestor_socket.send((error_msg).encode())
-
+       
 """forward p2p conn data to target client"""
 def forward_to_target(mess):
     target_usr = mess.recipient
@@ -129,9 +143,40 @@ def broadcast(msg, senderSocket):
     for sock in clientSockets[:]:   #iterate over copy of list (safer)
         if sock != senderSocket:
             try:
-                sock.send(msg)
+                sock.sendall(msg)
             except:
                 disconnect_client(sock) #remove failed conns
+
+"""find group members and send msg to each member socket"""
+def send_group_message(groupID, sender, text):
+    members = []
+    try:
+        with open("groupData.txt", "r") as f:
+            for line in f:
+                parts = line.strip().split(":")
+                if parts[0] == groupID:
+                    members.append(parts[-1])   # username
+    except:
+        return
+
+    for sock, info in clientInfo.items():
+        username = info.get("username")
+        if username in members and username != sender:
+            msg = ProtocolUtils(
+                headers={
+                    "MessageType": protocol.MessageType.DATA,
+                    "Message": protocol.Messages.GROUP_TEXT,
+                    "Sender": sender,
+                    "Recipient": username
+                },
+                body=text.encode()
+            )
+            try:
+                sock.send(msg.encode())
+            except:
+                disconnect_client(sock)
+
+
 """remove disconnected clients"""
 def disconnect_client(sock):
     if sock in clientSockets:
@@ -170,7 +215,7 @@ def start_server():
             "UDP_PORT": 1501              # add udp port for p2p
         }
 
-        thread = threading.Thread(target=handle_client, args=(clientSocket,))
+        thread = threading.Thread(target=handle_client, args=(clientSocket,manager))
         thread.daemon = True        #thread closes when main program exits.
         thread.start()
 

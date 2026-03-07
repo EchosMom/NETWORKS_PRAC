@@ -54,25 +54,29 @@ class Protocol:
 
       @staticmethod #create message from specified protocol
       def encodeMessage(type, message, sender, **kwargs):
-         headers = { f"MessageType: {type}", f"Message: {message}", f"Sender: {sender}" }
+         headers = [
+            f"MessageType: {type}",
+            f"Message: {message}",
+            f"Sender: {sender}"
+         ]
 
          #add any additional headers from kwargs
          for key, value in kwargs.items():
             if key != 'body' : #body would be a text massage or binary media being sent
-             headers.add(f"{key}: {value}")
+             headers.append(f"{key}: {value}")
              
-         headers.add("") #add empty line to indicate end of headers
+         headers.append("") #add empty line to indicate end of headers
          headerString = "\n".join(headers)
 
          header_bytes = headerString.encode() #encode headers to bytes
 
          #if data message, include body
          body = kwargs.get('body', "")
-         if body:
-             body_byte = body.encode() if isinstance(body, str) else body #encode body to bytes if its a string
-             return header_bytes + b"\n\n" + body_byte #combine headers and body with double newline separator
-         return header_bytes + b"\n\n" #if no body, just return headers with separator
-
+         if isinstance(body, str):
+            body = body.encode()
+        
+         return headerString.encode() + b"\n\n" + body
+                         
       @staticmethod #devide message into headers and body
       def decodeMessage(data):
         try:
