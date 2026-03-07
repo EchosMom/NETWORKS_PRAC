@@ -290,8 +290,16 @@ if __name__ == '__main__':
         username, clientSocket = login_result
 
 choice = input("Would you like to interact with the server or a peer? (s/p): ").lower()
-if choice == "s":
-        print("Interacting with server. Type 'exit' to quit.") #this is just a placeholder, you can implement actual server interactions here
+if choice == "s":#t actual server interactions here
+        print("Interacting with server./n")
+        print("Options:")
+        print("1. Send chat request to peer")
+        print("2. Create group")
+        print("3. Join group")
+        print("4. Leave group")
+        print("5. Send group message")
+        print("6. Logout")
+        
 elif choice == "p":
          target = input("Enter username to chat with: ")
          send_request(clientSocket, username, target)
