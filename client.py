@@ -7,7 +7,7 @@ import GroupMembershipManager
 import socket
 import threading
 import protocol
-import ProtocolUtils
+from ProtocolUtils import ProtocolUtils
 
 serverAddress = "127.0.0.1"  # Localhost
 serverPort = 1500
@@ -114,7 +114,7 @@ def send_request(clientSocket, username, recipient):
 
 
 """Receives replies from the server and prints them to the console."""
-def receive_reply(clientSocket):
+def receive_reply(clientSocket, username):
     while True:
         try:
             reply = clientSocket.recv(protocol.Protocol.MAX_MESSAGE_BODY_SIZE)
@@ -258,7 +258,7 @@ def handle_peer_connection(peerSocket):
         except:
             print("Error: failed to receive Message from peer.")
             break
-    peerSocket.close() 
+    """peerSocket.close() """
 
 
 def handle_p2p_chat(peerSocket, p_username):
@@ -278,7 +278,8 @@ def handle_p2p_chat(peerSocket, p_username):
  if p_username in peerConnections:
         del peerConnections[p_username]
 
-peerSocket.close()
+"""peerSocket.close()"""
+
 #must still add UDP for media transfer, and p2p connection handling (peer discovery, connection setup, etc.)
 
 
