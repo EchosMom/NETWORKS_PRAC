@@ -63,6 +63,8 @@ def loginToServer():
 
         if reply.message == protocol.Messages.ACK:
             print(f"Login successful: {reply.body.decode()}")
+            #thread to listen for sever message
+            threading.Thread(target=receive_reply, args=(clientSocket,), daemon=True).start()
             return (usernameInput, clientSocket)
         if reply.message == protocol.Messages.ERROR:
             print(f"Login failed: {reply.body.decode()}")
@@ -98,7 +100,7 @@ def receive_reply(clientSocket):
                 print("Server disconnected.")
                 break
             else:
-                rp = ProtocolUtils.decode(reply)
+                rp = ProtocolUtils.ProtocolUtils.decode(reply)
                 print(f"[Server]: {rp.body.decode()}")
         except Exception as e:
             print("Error: reply not received.", e)

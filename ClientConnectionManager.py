@@ -26,6 +26,7 @@ class ClientConnectionManager:
                 
     def authenticate(self, username, password):
         with self.lock:
+            print("Username file path:", self.usernameFile)
             if not os.path.exists(self.usernameFile):
                 return False, "User not found"
             
