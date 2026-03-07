@@ -16,9 +16,9 @@ chunkSize = 65536 #bytes per UDP packet
 
 
 #UDP sockets
-mediaSendSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-mediareceiveSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-mediareceiveSocket.bind(("0.0.0.0", mediaPort))
+#mediaSendSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+#mediareceiveSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+#mediareceiveSocket.bind(("0.0.0.0", mediaPort))
 
 #cleint must login to serever
 def loginToServer():
@@ -67,24 +67,20 @@ def loginToServer():
             return None
 
 """Sends requests to the server."""
-def send_request(clientSocket, username):
-    while True:
-        request = input("Enter request or 'exit' to quit: ")
-        if request.lower() =="exit":
-            clientSocket.close()
-            break
+def send_request(clientSocket, username, recipient):
+    request = input("Enter server request: ")
+    if request =="P2P_REQ":
         try:
-            rq = ProtocolUtils(
+            rq = ProtocolUtils.ProtocolUtils(
                 headers={
-                    "messageType": protocol.MessageType.COMMAND,
-                    "message": request,
-                    "sender": username,
-                    "recipient": serverAddress},
+                    "MessageType": protocol.MessageType.P2P_REQ,
+                    "Sender": username,
+                    "Recipient": recipient},
                 body=b"")
             clientSocket.send(rq.encode())
         except Exception as e:
-              print("Error: request not sent.", e)
-              break
+            print("Error: request not sent.", e)
+    # Still need to add code for other requests
 
 """Receives replies from the server and prints them to the console."""
 def receive_reply(clientSocket):
@@ -94,9 +90,33 @@ def receive_reply(clientSocket):
             if not reply:
                 print("Server disconnected.")
                 break
-            else:
-                rp = ProtocolUtils.ProtocolUtils.decode(reply)
+            rp = ProtocolUtils.ProtocolUtils.decode(reply)
+            type= rp.headers.get("MessageType")
+            if type == protocol.MessageType.COMMAND:
                 print(f"[Server]: {rp.body.decode()}")
+            elif type == protocol.MessageType.P2P_REQ:
+                print("You received P2P chat request")
+                ip= listenSocket.getsockname()[0]
+                #port= listenSocket.getsockname()[1]
+                offer = ProtocolUtils.ProtocolUtils(
+                headers={
+                    "MessageType": protocol.MessageType.P2P_OFFER,
+                    "Sender": rp.headers.get("Recipient"),
+                    "Recipient": rp.headers.get("Sender")},
+                body= ip.encode())
+                #f"{ip}:{port}".encode())
+                clientSocket.send(offer.encode())
+
+            elif type == protocol.MessageType.OFFER:
+                print("Peer received P2P chat request")
+                ip= rp.body.decode()
+                #rp.body.decode().split(":")
+                #ip= ip_port[0]
+                #port= int(ip_port[1])
+                print("Ready to start chat.")
+                peerSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                peerSocket.connect((ip, peerPort))
+                #start_chat()
         except Exception as e:
             print("Error: reply not received.", e)
             break
@@ -105,12 +125,19 @@ def receive_reply(clientSocket):
 """Sends messages to peer."""
 def send_message(username):
     while True:  # Loops to send messages to different peers
-        peerIP = input("Enter peer IP or 'exit' to quit: ")
-        if peerIP.lower() == "exit":
+        peerUsername = input("Enter peer username or 'exit' to quit: ")
+        if peerUsername.lower() == "exit":
             break
         try:
+            send_request(clientSocket, username, peerUsername)
+        except Exception as e:
+            print("Error: P2P request not sent.", e)
+            break
+
+        """ 
+        Code to send actual messages
             peerSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            peerSocket.connect((peerIP, peerPort))
+            peerSocket.connect((peerUsername, peerPort))
             print("Connection successful.")
             while True:  # Loops to send messages to the same peer
                 try:
@@ -122,16 +149,16 @@ def send_message(username):
                         file_path = message.split(" ", 1)[1]
                         with open(file_path, "rb") as f:
                             chunk = f.read(chunkSize)
-                            while chunk:
-                                mediaSendSocket.sendto(chunk, (peerIP, mediaPort))
-                                chunk = f.read(chunkSize)
+                            #while chunk:
+                                #mediaSendSocket.sendto(chunk, (peerUsername, mediaPort))
+                                #chunk = f.read(chunkSize)
                     else:
                         msg = ProtocolUtils(
                         headers={
                             "messageType": protocol.MessageType.CHAT,
                             "message": protocol.Messages.TEXT,
                             "sender": "peer",
-                            "recipient": peerIP},
+                            "recipient": peerUsername},
                              body= message.encode())
                         peerSocket.send(msg.encode())        
                 except:
@@ -139,7 +166,7 @@ def send_message(username):
                     peerSocket.close()
                     break
         except:
-            print("Connection unsuccessful.")
+            print("Connection unsuccessful.") """
 
 """Receives messages from peer and prints them to the console."""
 def receive_peer_connections(listenSocket):

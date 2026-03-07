@@ -32,7 +32,6 @@ def handle_client(clientSocket, manager):
                 mess = ProtocolUtils.ProtocolUtils.decode(data)
                 msg_type = mess.messageType
                 msg_content = mess.message
-                print("Headers received:", mess.headers)
 
                 #normal chat msg
                 if msg_type == protocol.MessageType.CHAT:
@@ -106,8 +105,8 @@ def handle_p2p_req(requestor_socket, mess):
             "from": requestor_usr,
             "data": mess.get("data", {})
         }
-        targetSocket.send((mess).encode())
-
+        targetSocket.send((response).encode())
+        print("Forwarded request to peer.")
     else:
         error_msg = {
             "type": protocol.MessageType.P2P_REJ,
