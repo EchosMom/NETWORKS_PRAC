@@ -6,7 +6,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 import socket
 import threading
 import protocol
-import ProtocolUtils
+from ProtocolUtils import ProtocolUtils
 
 serverAddress = "127.0.0.1"  # Localhost
 serverPort = 1500
@@ -34,7 +34,7 @@ def loginToServer():
     usernameInput = input("Enter username: ")
     passwordInput = input("Enter password: ")
 
-    login_msg = ProtocolUtils.ProtocolUtils(
+    login_msg = ProtocolUtils(
         headers={
             "MessageType": protocol.MessageType.COMMAND,
             "Message": protocol.Messages.LOGIN,
@@ -45,25 +45,33 @@ def loginToServer():
         },
         body=b""
     )
+
+    
+    print(f"Direct encode result type: {type(login_msg.encode())}")
     clientSocket.send(login_msg.encode())
-
-
     
     # Wait for server reply, if login fails, close socket and return None
     while True:
-        replyBytes = clientSocket.recv(protocol.Protocol.MAX_MESSAGE_BODY_SIZE)
+        replyBytes = clientSocket.recv(4096)
         if not replyBytes:
             print("Server disconnected.")
             clientSocket.close()
             return None
-        reply = ProtocolUtils.ProtocolUtils.decode(replyBytes)
+        reply = ProtocolUtils.decode(replyBytes)
+        if reply is None:  #test
+            print("Invalid server response")
+            continue
+
+        print("received: " + reply.message)     #test
+
         if reply.message == protocol.Messages.ACK:
             print(f"Login successful: {reply.body.decode()}")
             #thread to listen for sever message
             threading.Thread(target=receive_reply, args=(clientSocket,), daemon=True).start()
             return (usernameInput, clientSocket)
-        elif reply.message == protocol.Messages.ERROR:
+        if reply.message == protocol.Messages.ERROR:
             print(f"Login failed: {reply.body.decode()}")
+            clientSocket.close()
             return None
 
 """Sends requests to the server."""
@@ -73,9 +81,10 @@ def send_request(clientSocket, username, recipient):
         try:
             rq = ProtocolUtils.ProtocolUtils(
                 headers={
-                    "MessageType": protocol.MessageType.P2P_REQ,
+                    "MessageType": protocol.MessageType.COMMAND,
+                    "Message": request,
                     "Sender": username,
-                    "Recipient": recipient},
+                    "Recipient": serverAddress},
                 body=b"")
             clientSocket.send(rq.encode())
         except Exception as e:
@@ -122,11 +131,11 @@ def receive_reply(clientSocket):
             break
             
 
-"""Sends messages to peer."""
-def send_message(username):
-    while True:  # Loops to send messages to different peers
-        peerUsername = input("Enter peer username or 'exit' to quit: ")
-        if peerUsername.lower() == "exit":
+"""Sends Messages to peer."""
+def send_Message(username):
+    while True:  # Loops to send Messages to different peers
+        peerIP = input("Enter peer IP or 'exit' to quit: ")
+        if peerIP.lower() == "exit":
             break
         try:
             send_request(clientSocket, username, peerUsername)
@@ -139,38 +148,39 @@ def send_message(username):
             peerSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             peerSocket.connect((peerUsername, peerPort))
             print("Connection successful.")
-            while True:  # Loops to send messages to the same peer
+            while True:  # Loops to send Messages to the same peer
                 try:
-                    message = input("Enter message or 'exit' to change peers: ")
-                    if message.lower() == "exit":
+                    Message = input("Enter Message or 'exit' to change peers: ")
+                    if Message.lower() == "exit":
                         peerSocket.close()
                         break
-                    elif message.startswith("media "):
-                        file_path = message.split(" ", 1)[1]
+                    elif Message.startswith("media "):
+                        file_path = Message.split(" ", 1)[1]
                         with open(file_path, "rb") as f:
                             chunk = f.read(chunkSize)
-                            #while chunk:
-                                #mediaSendSocket.sendto(chunk, (peerUsername, mediaPort))
-                                #chunk = f.read(chunkSize)
+                            while chunk:
+                                mediaSendSocket.sendto(chunk, (peerIP, mediaPort))
+                                chunk = f.read(chunkSize)
+                        mediaSendSocket.sendto(b"__END__", (peerIP, mediaPort))
                     else:
                         msg = ProtocolUtils(
                         headers={
-                            "messageType": protocol.MessageType.CHAT,
-                            "message": protocol.Messages.TEXT,
-                            "sender": "peer",
-                            "recipient": peerUsername},
-                             body= message.encode())
+                            "MessageType": protocol.MessageType.CHAT,
+                            "Message": protocol.Messages.TEXT,
+                            "Sender": username,
+                            "Recipient": peerIP},
+                             body= Message.encode())
                         peerSocket.send(msg.encode())        
                 except:
-                    print("Error: message not sent.")
+                    print("Error: Message not sent.")
                     peerSocket.close()
                     break
         except:
             print("Connection unsuccessful.") """
 
-"""Receives messages from peer and prints them to the console."""
+"""Receives Messages from peer and prints them to the console."""
 def receive_peer_connections(listenSocket):
-    while True:  # Loops to accept connection and message from different peers
+    while True:  # Loops to accept connection and Message from different peers
         try:
             new_socket, new_address = listenSocket.accept()
             threading.Thread(target=handle_peer_connection, args=(new_socket,), daemon=True).start()
@@ -179,17 +189,17 @@ def receive_peer_connections(listenSocket):
             break
 
 def handle_peer_connection(peerSocket):
-    while True:  # Loops to receive messages from the same peer
+    while True:  # Loops to receive Messages from the same peer
         try:
-            message = peerSocket.recv(protocol.Protocol.MAX_MESSAGE_BODY_SIZE)
-            if not message:
+            Message = peerSocket.recv(protocol.Protocol.MAX_MESSAGE_BODY_SIZE)
+            if not Message:
                 print("Peer disconnected.")
                 break
             else:
-                msg = ProtocolUtils.ProtocolUtils.decode(message)
+                msg = ProtocolUtils.decode(Message)
                 print(f"[Peer]: {msg.body.decode()}")
         except:
-            print("Error: failed to receive message from peer.")
+            print("Error: failed to receive Message from peer.")
             break
     peerSocket.close() 
 
@@ -203,10 +213,23 @@ if __name__ == '__main__':
         exit()
     else:
         username, clientSocket = login_result
+        threading.Thread(target=receive_reply, args=(clientSocket,), daemon=True).start()
 
     # Start UDP media receiver
     #threading.Thread(target=receive_media, args=(udpRecvSocket,), daemon=True).start()
+    def receive_media():
+        filename = "received_media.bin"   
+        file = open(filename, "wb")       
+        print("Receiving media...")
 
+        while True:
+            data, addr = mediareceiveSocket.recvfrom(chunkSize)
+            if data == b"__END__":        
+                break
+            file.write(data)              
+        file.close()
+        print(f"Media saved to {filename}")  
+        
     # Ask user if connecting to peer or server
     choice = input("Connect to server or peer? (s/p): ").lower()
     if choice == "s":
@@ -217,4 +240,4 @@ if __name__ == '__main__':
         listenSocket.bind(("0.0.0.0", peerPort))
         listenSocket.listen()
         threading.Thread(target=receive_peer_connections, args=(listenSocket,), daemon=True).start()
-        send_message(username)
+        send_Message(username)
