@@ -27,9 +27,9 @@ class ClientConnectionManager:
                 
     def authenticate(self, username, password):
         with self.lock:
+            print("Username file path:", self.usernameFile)
             if not os.path.exists(self.usernameFile):
                 return False
-            
             with open(self.usernameFile, "r") as f:
                 for line in f:
                     stored_username, stored_password = line.strip().split(":")

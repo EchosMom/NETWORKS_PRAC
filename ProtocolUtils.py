@@ -25,7 +25,7 @@ class ProtocolUtils:
     
     def encode(self):
         #convert bytes for sending
-        return protocol.Protocol.encodeMessage(self.messageType, self.message, self.sender, Recipient=self.recipient, body=self.body,**{k.upper(): v for k, v in self.headers.items() if k not in ["MessageType", "Message", "Sender", "Recipient"]})
+        return protocol.Protocol.encodeMessage(self.messageType, self.message, self.sender, Recipient=self.recipient, body=self.body,**{k: v for k, v in self.headers.items() if k not in ["MessageType", "Message", "Sender", "Recipient"]})
 
     @classmethod
     def decode(cls, data):

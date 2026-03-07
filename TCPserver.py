@@ -19,7 +19,7 @@ clientSockets = []          #track connected clients
 clientInfo = {}             #track clients with info - socket -> usrname, p2p_port, public_ip}
 
 """handle individual client connections"""
-def handle_client(clientSocket): 
+def handle_client(clientSocket, manager): 
     try:
         #receiving msg
         while True:
@@ -29,33 +29,36 @@ def handle_client(clientSocket):
                 break
             
             try:
-                mess = ProtocolUtils.decode(data)
+                mess = ProtocolUtils.ProtocolUtils.decode(data)
                 msg_type = mess.messageType
                 msg_content = mess.message
+                print("Headers received:", mess.headers)
 
-                #noraml chat msg
+                #normal chat msg
                 if msg_type == protocol.MessageType.CHAT:
                     broadcast(mess.encode, clientSocket)
 
                 elif msg_type == protocol.MessageType.P2P_REQ:
                     handle_p2p_req(clientSocket, mess)
 
-                elif msg_type == protocol.MessageType.P2P_OFFFER:
+                elif msg_type == protocol.MessageType.P2P_OFFER:
                     forward_to_target(mess)
 
                 elif msg_type == protocol.MessageType.P2P_ICE:
                     forward_to_target(mess)
                 
                 #login handling
-                elif msg_type == protocol.Messages.LOGIN:
-                    username = mess.headers.get("Username")
-                    password = mess.headers.get("Password")
-                    auth_success = ClientConnectionManager.authenticate(username, password)
-
+                elif msg_content == "LOGIN":
+                    un = mess.headers.get("Username")
+                    pw = mess.headers.get("Password")
+                    username= un.strip()
+                    password= pw.strip()
+                    auth_success = manager.authenticate(username, password)
+                    
                     if auth_success:
                         clientInfo[clientSocket]["username"] = username
                         print(f"{username} logged in")
-                        reply = ProtocolUtils(
+                        reply = ProtocolUtils.ProtocolUtils(
                             headers={
                                 "MessageType": protocol.MessageType.COMMAND,
                                 "Message": protocol.Messages.ACK,
@@ -66,7 +69,7 @@ def handle_client(clientSocket):
                         )
                     else:
                         print(f"Failed login attempt for user: {username}")
-                        reply = ProtocolUtils(
+                        reply = ProtocolUtils.ProtocolUtils(
                             headers={
                                 "MessageType": protocol.MessageType.COMMAND,
                                 "Message": protocol.Messages.ERROR,
@@ -75,7 +78,7 @@ def handle_client(clientSocket):
                             },
                             body=b"Invalid username or password."
                         )
-                clientSocket.send(reply.encode())
+                    clientSocket.send(reply.encode())
                 
             except Exception as e:
                 print("Error handling client message: ", e)
@@ -169,7 +172,7 @@ def start_server():
             "UDP_PORT": 1501              # add udp port for p2p
         }
 
-        thread = threading.Thread(target=handle_client, args=(clientSocket,))
+        thread = threading.Thread(target=handle_client, args=(clientSocket, manager))
         thread.daemon = True        #thread closes when main program exits.
         thread.start()
 
