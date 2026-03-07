@@ -113,7 +113,8 @@ def handle_p2p_req(requestor_socket, mess):
             body=mess.body                                      
         )
 
-        targetSocket.send(forward_msg.encode())                 
+        targetSocket.send(forward_msg.encode())    
+        print(f"Forwarded P2P request from {requestor_usr} to {target_usr}")             
 
     else:
         error_msg = ProtocolUtils(
@@ -134,6 +135,7 @@ def forward_to_target(mess):
         if info.get("username") == target_usr:
             try:
                 sock.send(mess.encode())
+                print(f"Forwarded P2P offer to {target_usr}")
             except Exception as e:
                 print(f"Error forwarding message to {target_usr}: ", e)
             break

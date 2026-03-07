@@ -26,6 +26,7 @@ class Messages:
         CHAT_REQUEST = "CHAT_REQUEST"
         CHAT_ACCEPT = "CHAT_ACCEPT"
         CHAT_REJECT = "CHAT_REJECT"
+        P2P_OFFER = "P2P_OFFER"
 
         #control messages
         ACK = "ACK"
