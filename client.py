@@ -342,10 +342,9 @@ if choice == "s":#t actual server interactions here
                 },
                 body=b""
         )
-                 
-        clientSocket.send(logout_msg.encode())
-        print("Logged out.")
-        clientSocket.close()
+                 clientSocket.send(logout_msg.encode())
+                 print("Logged out.")
+                 clientSocket.close()
 
         exit()
         
