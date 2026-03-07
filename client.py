@@ -16,10 +16,11 @@ mediaPort = 1700 #this is for sending media files, UDP_port
 chunkSize = 65536 #bytes per UDP packet
 
 peerConnections = {} #track peer connections - username -> (ip, port)
+listenSocket = None
 p2p_Listening = False #flag to indicate if client is currently listening for p2p connection
 
 def listen_for_p2p():
-    global p2p_Listening
+    global p2p_Listening, listenSocket
     if p2p_Listening:
         print("Already listening for P2P connections.")
         return
@@ -31,6 +32,7 @@ def listen_for_p2p():
     print(f"Listening for P2P connections on port {peerPort}...")
 
 def accept_Connections ():
+    global p2p_Listening, listenSocket
     while p2p_Listening:
         try:
             peersoclket, peerAddress = listenSocket.accept()
