@@ -2,6 +2,7 @@
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+import GroupMembershipManager
 
 import socket
 import threading
@@ -299,6 +300,40 @@ if choice == "s":#t actual server interactions here
         print("4. Leave group")
         print("5. Send group message")
         print("6. Logout")
+        option = input("Enter option number: ")
+        if option == "1":
+            target = input("Enter username to chat with: ")
+            send_request(clientSocket, username, target)
+        elif option == "2":
+            group_name = input("Enter group name: ")
+            GroupMembershipManager.createGroup(group_name, username) #send create group request to server
+         
+        elif option == "3":
+            group_name = input("Enter group name to join: ")
+            GroupMembershipManager.joinGroup(group_name, username) #send join group request to server
+           
+        elif option == "4":
+            group_name = input("Enter group name to leave: ")
+            GroupMembershipManager.leaveGroup(group_name, username) #send leave group request to server
+        elif option == "5":
+            group_name = input("Enter group name to send message to: ")
+            message = input("Enter message: ")
+            #send group message request to server
+        elif option == "6":
+            #send logout request to server and close socket
+            logout_msg = ProtocolUtils(
+                headers={
+                    "MessageType": protocol.MessageType.COMMAND,
+                    "Message": protocol.Messages.LOGOUT,
+                    "Sender": username,
+                    "Recipient": serverAddress
+                },
+                body=b""
+            )
+            clientSocket.send(logout_msg.encode())
+            print("Logged out.")
+            clientSocket.close()
+            exit()
         
 elif choice == "p":
          target = input("Enter username to chat with: ")
