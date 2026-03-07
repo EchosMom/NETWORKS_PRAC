@@ -48,6 +48,9 @@ def loginToServer():
         },
         body=b""
     )
+
+    
+    print(f"Direct encode result type: {type(login_msg.encode())}")
     clientSocket.send(login_msg.encode())
 
     # Wait for server reply, if login fails, close socket and return None
