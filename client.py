@@ -65,7 +65,7 @@ def loginToServer():
         print("received: " + reply.message)     #test
 
         if reply.message == protocol.Messages.ACK:
-            print(f"Login successful: {reply.body.decode()}")
+            #print(f"Login successful: {reply.body.decode()}")
             #thread to listen for sever message
             threading.Thread(target=receive_reply, args=(clientSocket,), daemon=True).start()
             return (usernameInput, clientSocket)
