@@ -166,7 +166,7 @@ def receive_reply(clientSocket, username):
             print("Error: reply not received.", e)
             break
             
-def accept_request(accept):
+def accept_request(request, clientSocket, username, peerPort):
     
         accept_msg = ProtocolUtils(
             headers={
@@ -315,10 +315,10 @@ while True:
                 if selected in chatRequests:
                     choice = input(f"Accept chat request from {selected}? (y/n): ")
                     if choice.lower() == "y":
-                        accept_request(chatRequests[selected], clientSocket, username,)
+                        accept_request(chatRequests[selected], clientSocket, username, peerPort)
                         del chatRequests[selected]
                     else:
-                        del chatRequests[selected]
+                        
                         # Send rejection
                         reject_msg = ProtocolUtils(
                             headers={
@@ -328,9 +328,10 @@ while True:
                                 "Recipient": selected
                          },
                         body=b""
-                    )
-                    clientSocket.send(reject_msg.encode())
-                    print(f"Chat request from {selected} rejected.")
+                        )
+                        clientSocket.send(reject_msg.encode())
+                        print(f"Chat request from {selected} rejected.")
+                        del chatRequests[selected]
 
                 else:
                     print("Invalid selection.")
