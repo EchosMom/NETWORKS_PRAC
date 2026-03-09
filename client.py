@@ -49,7 +49,7 @@ def accept_Connections ():
 #mediareceiveSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 #mediareceiveSocket.bind(("0.0.0.0", mediaPort))
 
-#cleint must login to serever
+#client must login to server
 def loginToServer():
     clientSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
@@ -87,9 +87,6 @@ def loginToServer():
         reply = ProtocolUtils.decode(replyBytes)
         if reply.message == protocol.Messages.ACK:
             print(f"Login successful")  # removed {reply.body.decode()} 
-            listen_for_p2p()
-            threading.Thread(target=receive_reply, 
-                        args=(clientSocket, usernameInput), daemon=True).start()
             return (usernameInput, clientSocket)
             
         if reply.message == protocol.Messages.ERROR:
@@ -110,8 +107,8 @@ def send_request(clientSocket, username, recipient):
     )
     clientSocket.send(request.encode())
     print(f"Chat request sent to {recipient}")
-
-
+    reply = clientSocket.recv(protocol.Protocol.MAX_MESSAGE_BODY_SIZE)
+    
 """Receives replies from the server and prints them to the console."""
 def receive_reply(clientSocket, username):
     while True:
@@ -125,28 +122,6 @@ def receive_reply(clientSocket, username):
             if type == protocol.MessageType.P2P_REQ:
                  requester = rp.sender
                  print(f"\n[P2P Request] {requester} wants to chat")
-                 response = input("Accept? (y/n): ")
-
-                 if response.lower() == "y":
-                        accept_msg = ProtocolUtils(
-                            headers={
-                                "MessageType": protocol.MessageType.P2P_OFFER,
-                                "Message": protocol.Messages.CHAT_ACCEPT,
-                                "Sender": username,
-                                "Recipient": requester},
-                            body= f"127.0.0.1:{peerPort}".encode())
-                        clientSocket.send(accept_msg.encode())
-
-
-                 else:
-                        reject_msg = ProtocolUtils(
-                            headers={
-                                "MessageType": protocol.MessageType.P2P_OFFER,
-                                "Message": protocol.Messages.CHAT_REJECT,
-                                "Sender": username,
-                                "Recipient": requester},
-                            body=b"")
-                        clientSocket.send(reject_msg.encode())
 
             elif type == protocol.MessageType.P2P_OFFER:
                 print("Peer received P2P chat request")
@@ -173,9 +148,32 @@ def receive_reply(clientSocket, username):
             print("Error: reply not received.", e)
             break
             
+def accept_request(accept):
+    response = input("Accept? (y/n): ")
+
+    if response.lower() == "y":
+        accept_msg = ProtocolUtils(
+            headers={
+                "MessageType": protocol.MessageType.P2P_OFFER,
+                "Message": protocol.Messages.CHAT_ACCEPT,
+                "Sender": username,
+                "Recipient": requester},
+            body= f"127.0.0.1:{peerPort}".encode())
+        clientSocket.send(accept_msg.encode())
+
+
+    else:
+        reject_msg = ProtocolUtils(
+            headers={
+                "MessageType": protocol.MessageType.P2P_OFFER,
+                "Message": protocol.Messages.CHAT_REJECT,
+                "Sender": username,
+                "Recipient": requester},
+            body=b"")
+        clientSocket.send(reject_msg.encode())
 
 """Sends Messages to peer."""
-def send_Message(username, mess):
+def send_message(username, mess):
     if username in peerConnections:
         try:
             msg = ProtocolUtils(
@@ -293,70 +291,80 @@ if __name__ == '__main__':
                 break
         else:
             username, clientSocket = login_result
+            listen_for_p2p()
+            threading.Thread(target=receive_reply, 
+                        args=(clientSocket, username), daemon=True).start()
             break
 
 flag = True
 
 manager = GroupMembershipManager()
-
-#choice = input("Would you like to interact with the server or a peer? (s/p): ").lower()
-#if choice == "s":  # the actual server interactions here
+# the actual server interactions here
 print("You are interacting with server.")
+while True:
+    while flag:
+        print("Options:")
+        print("1. Send chat request to peer")
+        print("2. Accept/ reject chat request")
+        print("3. Create group")
+        print("4. Join group")
+        print("5. Leave group")
+        print("6. Send group message")
+        print("7. Logout")
 
-while flag:
-    print("Options:")
-    print("1. Send chat request to peer")
-    print("2. Create group")
-    print("3. Join group")
-    print("4. Leave group")
-    print("5. Send group message")
-    print("6. Logout")
+        option = input("Enter option number: ")
 
-    option = input("Enter option number: ")
-
-    if option == "1":
-        target = input("Enter username to chat with: ")
-        send_request(clientSocket, username, target)
+        if option == "1":
+            target = input("Enter username to chat with: ")
+            send_request(clientSocket, username, target)
         
-    elif option == "2":
-        group_name = input("Enter group name: ")
-        print(GroupMembershipManager.createGroup(manager, group_name, username)) #send create group request to server
+        if option == "2":
+            accept = input("Do you (a)ccept or (r)eject chat request?: ")
+            if accept == "a":
+                print("Chat request accepted.")
+                accept_Connections()
+            else:
+                print("Chat request rejected.")
+            
+        elif option == "3":
+            group_name = input("Enter group name: ")
+            print(GroupMembershipManager.createGroup(manager, group_name, username)) #send create group request to server
 
-    elif option == "3":
-        group_name = input("Enter group name to join: ")
-        if(GroupMembershipManager.groupExists(manager, group_name)):
-            print(GroupMembershipManager.joinGroup(manager, group_name, username)) #send join group request to server
+        elif option == "4":
+            group_name = input("Enter group name to join: ")
+            if(GroupMembershipManager.groupExists(manager, group_name)):
+                print(GroupMembershipManager.joinGroup(manager, group_name, username)) #send join group request to server
 
-    elif option == "4":
-        group_name = input("Enter group name to leave: ")
-        print(GroupMembershipManager.leaveGroup(manager, group_name, username)) #send leave group request to server
+        elif option == "5":
+            group_name = input("Enter group name to leave: ")
+            print(GroupMembershipManager.leaveGroup(manager, group_name, username)) #send leave group request to server
 
-    elif option == "5":
-        group_name = input("Enter group name to send message to: ")
-        message = input("Enter message: ")
-        
-        #send group message request to server
+        elif option == "6":
+            group_name = input("Enter group name to send message to: ")
+            message = input("Enter message: ")
+            
+            #send group message request to server
 
-    elif option == "6":
-    #send logout request to server and close socket
-        logout_msg = ProtocolUtils(
-        headers={
-            "MessageType": protocol.MessageType.COMMAND,
-            "Message": protocol.Messages.LOGOUT,
-            "Sender": username,
-            "Recipient": serverAddress
-        },
-        body=b""
-        )
+        elif option == "7":
+        #send logout request to server and close socket
+            logout_msg = ProtocolUtils(
+            headers={
+                "MessageType": protocol.MessageType.COMMAND,
+                "Message": protocol.Messages.LOGOUT,
+                "Sender": username,
+                "Recipient": serverAddress
+            },
+            body=b""
+            )
 
-        clientSocket.send(logout_msg.encode())
-        print("Logged out.")
-        clientSocket.close()
-        flag = False
-    else:
-        print("Invalid choice")
+            clientSocket.send(logout_msg.encode())
+            print("Logged out.")
+            clientSocket.close()
+            flag = False
+        else:
+            print("Invalid choice")
 
-exit()
+    exit()
 
     
 
