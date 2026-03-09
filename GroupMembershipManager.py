@@ -15,10 +15,13 @@ import os
     Therefore it is only the sending msgs at the moment
 """
 class GroupMembershipManager:  
-  def __init__(self, dataFile="groupData.txt"):
+  def __init__(self, dataFile="ServerData"):
         self.dataFile = dataFile
         self.groups = {} #groupID: {name, members}
         self.lock = threading.Lock()
+
+        os.makedirs(dataFile, exist_ok=True)
+        self.groupFile = os.path.join(dataFile, "groupData.txt") 
         
   def createGroup(self, groupName, creator):
         with self.lock:     #thread safety
@@ -30,7 +33,7 @@ class GroupMembershipManager:
             
             groupID = str(uuid.uuid4())[:8]  #short unique ID
 
-            with open(self.dataFile, "a") as f:
+            with open(self.GroupFile, "a") as f:
                 f.write(f"{groupID}:{groupName}:{creator}\n")
                 return f"Group '{groupName}' created with ID {groupID}."
             
@@ -71,9 +74,9 @@ class GroupMembershipManager:
                 if not self.groupExists(groupName):
                     return "Group name does not exist."
                 #remove user from group in file (simplified, could be optimized)
-                with open(self.dataFile, "r") as f:
+                with open(self.groupFile, "r") as f:
                     lines = f.readlines()
-                with open(self.dataFile, "w") as f:
+                with open(self.groupFile, "w") as f:
                     for line in lines:
                         parts = line.strip().split(":")
 
@@ -98,7 +101,7 @@ class GroupMembershipManager:
             return f"User '{username}' left group {groupName}."
 
   def groupExists(self, groupName):
-        with open(self.dataFile, "r") as f:
+        with open(self.groupFile, "r") as f:
             for line in f:
                 _, name, _ = line.strip().split(":")
                 if name == groupName:
@@ -106,7 +109,7 @@ class GroupMembershipManager:
         return False
   
   def groupIDExists(self, groupID):
-        with open(self.dataFile, "r") as f:
+        with open(self.groupFile, "r") as f:
             for line in f:
                 id, _, _ = line.strip().split(":")
                 if id == groupID:
@@ -115,7 +118,7 @@ class GroupMembershipManager:
   
   def getGroupCreator(self, groupName):
        if(GroupMembershipManager.groupExists(self, groupName)):
-        with open(self.dataFile, "r") as f:
+        with open(self.groupFile, "r") as f:
             for line in f:
                 _, _, creator = line.strip().split(":")
                 if creator != None:

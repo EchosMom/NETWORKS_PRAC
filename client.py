@@ -113,11 +113,11 @@ def send_request(clientSocket, username, recipient):
 def receive_reply(clientSocket, username):
     while True:
         try:
-            reply = clientSocket.recv(protocol.Protocol.MAX_MESSAGE_BODY_SIZE)
-            if not reply:
+            rep = clientSocket.recv(protocol.Protocol.MAX_MESSAGE_BODY_SIZE)
+            if not rep:
                 print("Server disconnected.")
                 break
-            rp = ProtocolUtils.decode(reply)
+            rp = ProtocolUtils.decode(rep)
             type= rp.message_type
             if type == protocol.MessageType.P2P_REQ:
                  requester = rp.sender
@@ -190,40 +190,7 @@ def send_message(username, mess):
 
     
                 
-""" 
-        Code to send actual messages
-            peerSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            peerSocket.connect((peerUsername, peerPort))
-            print("Connection successful.")
-            while True:  # Loops to send Messages to the same peer
-                try:
-                    Message = input("Enter Message or 'exit' to change peers: ")
-                    if Message.lower() == "exit":
-                        peerSocket.close()
-                        break
-                    elif Message.startswith("media "):
-                        file_path = Message.split(" ", 1)[1]
-                        with open(file_path, "rb") as f:
-                            chunk = f.read(chunkSize)
-                            while chunk:
-                                mediaSendSocket.sendto(chunk, (peerIP, mediaPort))
-                                chunk = f.read(chunkSize)
-                        mediaSendSocket.sendto(b"__END__", (peerIP, mediaPort))
-                    else:
-                        msg = ProtocolUtils(
-                        headers={
-                            "MessageType": protocol.MessageType.CHAT,
-                            "Message": protocol.Messages.TEXT,
-                            "Sender": username,
-                            "Recipient": peerIP},
-                             body= Message.encode())
-                        peerSocket.send(msg.encode())        
-                except:
-                    print("Error: Message not sent.")
-                    peerSocket.close()
-                    break
-        except:
-            print("Connection unsuccessful.") """
+
 
 """Receives Messages from peer and prints them to the console."""
 def receive_peer_connections(listenSocket):
@@ -384,5 +351,5 @@ while True:
         file.close()
         print(f"Media saved to {filename}")  '''
         
-    # Ask user if connecting to peer or server
+  
     
