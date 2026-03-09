@@ -10,15 +10,20 @@ class GroupMembershipManager:
         self.lock = threading.Lock()
         
   def createGroup(self, groupName, creator):
-        with self.lock:
+        with self.lock:     #thread safety
             if not os.path.exists(self.dataFile):
-                return False
+                return "File does not exist."
+            
             if self.groupExists(groupName):
-                return False, "Group name already exists."
+                return "Group name already exists."
+            
             groupID = str(uuid.uuid4())[:8]  #short unique ID
+
             with open(self.dataFile, "a") as f:
                 f.write(f"{groupID}:{groupName}:{creator}\n")
-            return True, f"Group '{groupName}' created with ID {groupID}."
+                return f"Group '{groupName}' created with ID {groupID}."
+            
+            return "Some other error occured"            #testing
         
   def joinGroup(self, groupID, username):
         with self.lock:

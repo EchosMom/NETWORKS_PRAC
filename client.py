@@ -2,7 +2,7 @@
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-import GroupMembershipManager
+from GroupMembershipManager import GroupMembershipManager
 
 import socket
 import threading
@@ -292,7 +292,10 @@ if __name__ == '__main__':
         exit()
     else:
         username, clientSocket = login_result
+
 flag = True
+
+manager = GroupMembershipManager()
 
 choice = input("Would you like to interact with the server or a peer? (s/p): ").lower()
 if choice == "s":#t actual server interactions here
@@ -306,7 +309,6 @@ if choice == "s":#t actual server interactions here
             print("4. Leave group")
             print("5. Send group message")
             print("6. Logout")
-            print("7. Exit")
 
             option = input("Enter option number: ")
 
@@ -316,7 +318,7 @@ if choice == "s":#t actual server interactions here
                 
             elif option == "2":
                 group_name = input("Enter group name: ")
-                GroupMembershipManager.createGroup(group_name, username) #send create group request to server
+                print(GroupMembershipManager.createGroup(manager, group_name, username)) #send create group request to server
         
             elif option == "3":
                 group_name = input("Enter group name to join: ")
@@ -330,7 +332,8 @@ if choice == "s":#t actual server interactions here
                 group_name = input("Enter group name to send message to: ")
                 message = input("Enter message: ")
                 
-            #send group message request to server
+                #send group message request to server
+                
             elif option == "6":
             #send logout request to server and close socket
                 logout_msg = ProtocolUtils(
@@ -347,6 +350,8 @@ if choice == "s":#t actual server interactions here
                 print("Logged out.")
                 clientSocket.close()
                 flag = False
+            else:
+                print("Invalid choice")
 
         exit()
         

@@ -1,0 +1,7 @@
+8f91ab12:Gamers:ZukoCat
+4aa321bb:Dancing:BirbBird
+9826674c:Meows:ZukoCat
+42e7d92d:Fridays:ZukoCat
+6388dbc8:Friday:ZukoCat
+c68b4b72:Mondays:ZukoCat
+c20158c1:Tuesdays:EchoCat
