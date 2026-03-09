@@ -317,21 +317,19 @@ if choice == "s":#t actual server interactions here
             elif option == "2":
                 group_name = input("Enter group name: ")
                 GroupMembershipManager.createGroup(group_name, username) #send create group request to server
-                break
         
             elif option == "3":
                 group_name = input("Enter group name to join: ")
                 GroupMembershipManager.joinGroup(group_name, username) #send join group request to server
-                break
         
             elif option == "4":
                 group_name = input("Enter group name to leave: ")
                 GroupMembershipManager.leaveGroup(group_name, username) #send leave group request to server
-                break
+
             elif option == "5":
                 group_name = input("Enter group name to send message to: ")
                 message = input("Enter message: ")
-                break
+                
             #send group message request to server
             elif option == "6":
             #send logout request to server and close socket
