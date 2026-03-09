@@ -327,7 +327,7 @@ if choice == "s":#t actual server interactions here
 
             elif option == "4":
                 group_name = input("Enter group name to leave: ")
-                GroupMembershipManager.leaveGroup(manager, group_name, username) #send leave group request to server
+                print(GroupMembershipManager.leaveGroup(manager, group_name, username)) #send leave group request to server
 
             elif option == "5":
                 group_name = input("Enter group name to send message to: ")

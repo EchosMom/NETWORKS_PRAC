@@ -2,6 +2,18 @@ import threading
 import uuid
 import os
 
+"""
+    issue with group management
+    leaving and joining groups are fine, 
+    if the goup is empty (no members)
+    and someone joins the group, 
+    the first entry is ",EchoCat" instead of just "EchoCat"
+
+    Still nothing going to server but the group management is working
+    in the groupData.txt
+
+    Therefore it is only the sending msgs at the moment
+"""
 class GroupMembershipManager:  
   def __init__(self, dataFile="groupData.txt"):
         self.dataFile = dataFile
@@ -53,20 +65,37 @@ class GroupMembershipManager:
                     else:
                         f.write(line)
             return f"User '{username}' joined group {groupName}."
-       
+
   def leaveGroup(self, groupName, username):
             with self.lock:
                 if not self.groupExists(groupName):
-                    return False, "Group name does not exist."
+                    return "Group name does not exist."
                 #remove user from group in file (simplified, could be optimized)
-                lines = []
                 with open(self.dataFile, "r") as f:
                     lines = f.readlines()
                 with open(self.dataFile, "w") as f:
                     for line in lines:
-                        if line.strip() != f"{groupName}:{username}":
+                        parts = line.strip().split(":")
+
+                        groupID = parts[0]
+                        name = parts[1]
+                        members = parts[2]
+
+                        if name == groupName:
+                            membersList = members.split(",")
+                            if username not in membersList:
+                                f.write(line)
+                                return f"{username} is not in {groupName}"
+
+                            membersList.remove(username)
+                            newMembers = "".join(membersList)
+
+                            newLine = f"{groupID}:{name}:{newMembers}\n"
+
+                            f.write(newLine)
+                        else:
                             f.write(line)
-                return True, f"User '{username}' left group {groupName}."
+            return f"User '{username}' left group {groupName}."
 
   def groupExists(self, groupName):
         with open(self.dataFile, "r") as f:
