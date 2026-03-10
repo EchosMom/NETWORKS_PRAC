@@ -13,8 +13,11 @@ serverAddress = "127.0.0.1"  # Localhost
 serverPort = 1500
 peerPort = 1600
 mediaPort = 1700 #this is for sending media files, UDP_port
-chunkSize = 65536 #bytes per UDP packet
+chunkSize = 6000 #bytes per UDP packet
+mediaSocket = None
 
+incoming_media = {}
+incoming_media_lock = threading.lock()
 peerConnections = {} #track peer connections - username -> socket
 listenSocket = None
 p2p_Listening = False #flag to indicate if client is currently listening for p2p connection
@@ -33,10 +36,7 @@ def listen_for_p2p():
     listenSocket.listen(5)
     p2p_Listening = True
 
-#UDP sockets
-#mediaSendSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-#mediareceiveSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-#mediareceiveSocket.bind(("0.0.0.0", mediaPort))
+
 
 #client must login to server
 def loginToServer():
@@ -335,12 +335,14 @@ while True:
         print("Options:")
         print("1. Send chat request to peer")
         print("2. Accept/ reject chat request")
-        print("3. Chat with connected peer")
-        print("4. Create group")
-        print("5. Join group")
-        print("6. Leave group")
-        print("7. Send group message")
-        print("8. Logout")
+        print("3. Send text to connected peer")
+        print("4. Send media to connected peer")
+        print("5. Create group")
+        print("6. Join group")
+        print("7. Leave group")
+        print("8. Send group message")
+        print("9. Logout")
+       
 
         option = input("Enter option number: ")
 
