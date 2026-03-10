@@ -77,10 +77,10 @@ def handle_client(clientSocket, manager):
                     forward_to_target(mess)
 
                 if msg_content == protocol.Messages.GROUP_TEXT:
-                    groupName = mess.headers.get("Recipient")   
+                    groupID = mess.headers.get("Recipient")   
                     text = mess.body.decode()                 
                     sender = mess.sender                      
-                    send_group_message(groupName, sender, text) 
+                    send_group_message(groupID, sender, text) 
 
             except Exception as e:
                 print("Error handling client message: ", e)
@@ -95,14 +95,14 @@ def handle_p2p_req(requestor_socket, mess):
     requestor_usr = mess.headers.get("Sender")
 
     #find targets socket
-    targetSocket = None         #initialise
+    targetSocket = None
 
     for sock, info in clientInfo.items():
         if info.get("username") == target_usr:
             targetSocket = sock
             break
 
-    if targetSocket:        #not empty
+    if targetSocket:
         forward_msg = ProtocolUtils(
             headers={
                 "MessageType": protocol.MessageType.P2P_REQ,    
@@ -114,7 +114,7 @@ def handle_p2p_req(requestor_socket, mess):
         )
 
         targetSocket.send(forward_msg.encode())    
-        print(f"Forwarded P2P request from {requestor_usr} to {target_usr}")    # happens in the server terminal        
+        print(f"Forwarded P2P request from {requestor_usr} to {target_usr}")             
 
     else:
         error_msg = ProtocolUtils(
@@ -127,8 +127,6 @@ def handle_p2p_req(requestor_socket, mess):
             body=b"User not online"
         )
         requestor_socket.send((error_msg).encode())
-        print(f"Failed to forward P2P request from {requestor_usr} to {target_usr}")    # happens in the server terminal        
-
        
 """forward p2p conn data to target client"""
 def forward_to_target(mess):
@@ -142,31 +140,27 @@ def forward_to_target(mess):
                 print(f"Error forwarding message to {target_usr}: ", e)
             break
 
-"""broadcast to all except sender UNUSED METHOD
+"""broadcast to all except sender"""
 def broadcast(msg, senderSocket):
     for sock in clientSockets[:]:   #iterate over copy of list (safer)
         if sock != senderSocket:
             try:
-                sock.sendall(msg)       #seems off
+                sock.sendall(msg)
             except:
                 disconnect_client(sock) #remove failed conns
-"""
 
 """find group members and send msg to each member socket"""
-def send_group_message(groupName, sender, text):
+def send_group_message(groupID, sender, text):
     members = []
     try:
-        with open("serverData/groupData.txt", "r") as f:
+        with open("groupData.txt", "r") as f:
             for line in f:
                 parts = line.strip().split(":")
-                if parts[1] == groupName:
-                    mems = parts[2].strip().split(",")
-                    for m in mems:
-                        members.append(m)   # usernames in group
+                if parts[0] == groupID:
+                    members.append(parts[-1])   # username
     except:
-        return "Hmm... something went wrong"
+        return
 
-    sent =0
     for sock, info in clientInfo.items():
         username = info.get("username")
         if username in members and username != sender:
@@ -181,10 +175,9 @@ def send_group_message(groupName, sender, text):
             )
             try:
                 sock.send(msg.encode())
-                sent+=1
             except:
-                return f"Oops! cannot send message to {username}"
-    return f"Message sent to {sent} members"
+                disconnect_client(sock)
+
 
 """remove disconnected clients"""
 def disconnect_client(sock):
