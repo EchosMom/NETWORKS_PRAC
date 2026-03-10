@@ -19,7 +19,8 @@ peerConnections = {} #track peer connections - username -> (ip, port)
 listenSocket = None
 p2p_Listening = False #flag to indicate if client is currently listening for p2p connection
 chatRequests = {} #track incoming chat requests - list of usernames who sent requests
-accepted = False #track p2p accepts
+global accepted #track p2p accepts
+accepted = False
 
 def listen_for_p2p():
     global p2p_Listening, listenSocket
@@ -139,11 +140,9 @@ def receive_reply(clientSocket, username):
 
                    peerConnections[p_username] = peerSocket
                    # Start chat thread
-                   threading.Thread(target=handle_p2p_chat, 
-                                   args=(peerSocket, p_username), daemon=True).start()
-                   accepted == True
+                   threading.Thread(target=handle_p2p_chat, args=(peerSocket, p_username), daemon=True).start()
                    print(f"Connected to {p_username}! You can now chat.")
-                                      
+                   accepted == True                   
                 except Exception as e:
                      print(f"Failed to connect to peer: {e}")
                     
@@ -168,6 +167,8 @@ def accept_request(clientSocket, username, peerPort):
             print(f"Chat request from {requester} accepted. Waiting for connection.")
             if not p2p_Listening:
                 listen_for_p2p()
+                threading.Thread(target=receive_peer_connections, daemon=True).start()
+
         except Exception as e:
             print("Error: failed to send accept message.", e)
 
@@ -190,7 +191,7 @@ def send_message(username, mess):
                  
 
 """Receives Messages from peer and prints them to the console."""
-def receive_peer_connections(listenSocket):
+def receive_peer_connections():
     while True:  # Loops to accept connection and Message from different peers
         try:
             new_socket, new_address = listenSocket.accept()
@@ -200,24 +201,24 @@ def receive_peer_connections(listenSocket):
             break
 
 def handle_peer_connection(peerSocket):
-    while True:  # Loops to receive Messages from the same peer
-        try:
-            Message = peerSocket.recv(1024)
-            if not Message:
-                print("Peer disconnected.")
-                break
-            else:
-                msg = ProtocolUtils.decode(Message)
-                if msg.message == protocol.Messages.ACK:
-                 peer_username = msg.sender
-                 peerConnections[peer_username] = peerSocket
-                 print(f"\n[P2P] Connected to {peer_username}")
-                
-                threading.Thread(target=handle_p2p_chat, 
-                               args=(peerSocket, peer_username), daemon=True).start()
-        except:
-            print("Error: failed to receive Message from peer.")
-            break
+    # while True:  # Loops to receive Messages from the same peer
+    try:
+        Message = peerSocket.recv(1024)
+        if not Message:
+            print("Peer disconnected.")
+            # break
+        else:
+            peer_username = msg.sender
+            msg = ProtocolUtils.decode(Message)
+            if msg.message == protocol.Messages.ACK:
+                peerConnections[peer_username] = peerSocket
+                print(f"\n[P2P] Connected to {peer_username}")
+            
+            threading.Thread(target=handle_p2p_chat, 
+                            args=(peerSocket, peer_username), daemon=True).start()
+    except:
+        print("Error: failed to receive Message from peer.")
+        # break
     """peerSocket.close() """
 
 
@@ -232,7 +233,7 @@ def handle_p2p_chat(peerSocket, p_username):
                 msg = ProtocolUtils.decode(mess)
                 if msg.message == protocol.Messages.TEXT: #sending actual texts p2p
                     print(f"\n[{p_username}]: {msg.body.decode()}")
-                    message = input("Type your message:", end="", flush=True)
+                    message = input("Message: ", end="", flush=True)
                     if message == "quit":
                         break
                     send_message(p_username, message)
@@ -293,10 +294,10 @@ while True:
                 send_request(clientSocket, username, target)
             except:
                 print ("Error sending request")
-            message = input("Type your messages (type 'quit' to end):")
-            if message == "quit":
-                break
-            elif accepted:
+            if accepted == True:
+                message = input("Type your messages (type 'quit' to end): ")
+                if message == "quit":
+                    break
                 send_message(target, message)
         
         elif option == "2":
