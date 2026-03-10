@@ -30,20 +30,6 @@ def listen_for_p2p():
     listenSocket.bind(("0.0.0.0", peerPort))
     listenSocket.listen(5)
     p2p_Listening = True
-    # print(f"Listening for P2P connections on port {peerPort}...")
-
-def accept_Connections ():
-    global p2p_Listening, listenSocket
-    while p2p_Listening:
-        try:
-            peersoclket, peerAddress = listenSocket.accept()
-            print(f"New connection from {peerAddress}")
-            threading.Thread(target=handle_peer_connection, args=(peersoclket,), daemon=True).start()
-        except Exception as e:
-            print("Error: failed to accept peer connection.", e)
-            break
-    threading.Thread(target=accept_Connections, daemon=True).start()
-    return listenSocket
 
 #UDP sockets
 #mediaSendSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -108,7 +94,7 @@ def send_request(clientSocket, username, recipient):
     )
     clientSocket.send(request.encode())
     print(f"Chat request sent to {recipient}")
-    reply = clientSocket.recv(protocol.Protocol.MAX_MESSAGE_BODY_SIZE)
+    # reply = clientSocket.recv(protocol.Protocol.MAX_MESSAGE_BODY_SIZE)
     
 """Receives replies from the server and prints them to the console."""
 def receive_reply(clientSocket, username):
@@ -127,8 +113,9 @@ def receive_reply(clientSocket, username):
 
             elif type == protocol.MessageType.P2P_OFFER:
                 print("Peer received P2P chat request")
-                ip= rp.body.decode().split(":")[0]
-                port = int(rp.body.decode().split(":")[1])
+                ip_port = rp.body.decode().strip()
+                ip= ip_port.split(":")[0]
+                port = int(ip_port.split(":")[1])
                 p_username = rp.sender
 
                 print(f"\n[P2P] Connecting to {p_username} at {ip}:{port}")
@@ -166,7 +153,7 @@ def receive_reply(clientSocket, username):
             print("Error: reply not received.", e)
             break
             
-def accept_request(request, clientSocket, username, peerPort):
+def accept_request(clientSocket, username, peerPort):
     
         accept_msg = ProtocolUtils(
             headers={
@@ -200,10 +187,7 @@ def send_message(username, mess):
             peerConnections[username].send(msg.encode())
         except Exception as e:
             print("Error: Message not sent.", e)
-
-    
-                
-
+                 
 
 """Receives Messages from peer and prints them to the console."""
 def receive_peer_connections(listenSocket):
@@ -228,7 +212,6 @@ def handle_peer_connection(peerSocket):
                  peer_username = msg.sender
                  peerConnections[peer_username] = peerSocket
                  print(f"\n[P2P] Connected to {peer_username}")
-                
                 
                 threading.Thread(target=handle_p2p_chat, 
                                args=(peerSocket, peer_username), daemon=True).start()
@@ -262,7 +245,6 @@ def handle_p2p_chat(peerSocket, p_username):
         peerSocket.close()
     except Exception as e:
         pass
-
 
 
 #must still add UDP for media transfer, and p2p connection handling (peer discovery, connection setup, etc.)
@@ -315,7 +297,7 @@ while True:
                 if selected in chatRequests:
                     choice = input(f"Accept chat request from {selected}? (y/n): ")
                     if choice.lower() == "y":
-                        accept_request(chatRequests[selected], clientSocket, username, peerPort)
+                        accept_request(clientSocket, username, peerPort) # removed chatRequests[selected]
                         del chatRequests[selected]
                     else:
                         
