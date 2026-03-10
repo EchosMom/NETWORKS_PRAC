@@ -173,6 +173,14 @@ def accept_request(clientSocket, username, peerPort):
         except Exception as e:
             print("Error: failed to send accept message.", e)
 
+def receive_peer_connections():
+    while True:  # Loops to accept connection and Message from different peers
+        try:
+            new_socket, new_address = listenSocket.accept()  # Waits for incoming connections
+            threading.Thread(target=handle_peer_connection, args=(new_socket,), daemon=True).start()
+        except:
+            print("Error: failed to accept peer connection.")
+            break
    
 """Sends Messages to peer."""
 def send_message(username, mess):
@@ -239,23 +247,23 @@ def chat_with_peer( p_username): #dedicated mode for chatting
                 print("Error: failed to receive Message from peer.", e)
                 break
         
-        recveive_thread = threading.Thread(target=receive_in_chat, daemon=True)
-        recveive_thread.start()
+    recveive_thread = threading.Thread(target=receive_in_chat, daemon=True)
+    recveive_thread.start()
 
         #loop for chat
-        while chatMode:
-            try:
-                message = input("You: ")
-                if message.lower() == "quit":
+    while chatMode:
+        try:
+            message = input("You: ")
+            if message.lower() == "quit":
                     print(f"\n[P2P] Ending chat with {p_username}.")
                     break     
 
-                send_message(p_username, message)
+            send_message(p_username, message)
 
-            except Exception as e:
+        except Exception as e:
                 print("Error: failed to send Message to peer.", e)
                 break
-        print(f"\n[P2P] Chat with {p_username} ended.")     
+    print(f"\n[P2P] Chat with {p_username} ended.")     
 
 def handle_p2p_chat(peerSocket, p_username):
     while True:
