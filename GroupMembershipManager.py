@@ -33,7 +33,7 @@ class GroupMembershipManager:
             
             groupID = str(uuid.uuid4())[:8]  #short unique ID
 
-            with open(self.GroupFile, "a") as f:
+            with open(self.groupFile, "a") as f:
                 f.write(f"{groupID}:{groupName}:{creator}\n")
                 return f"Group '{groupName}' created with ID {groupID}."
             
