@@ -191,15 +191,6 @@ def send_message(username, mess):
             print("Error: Message not sent.", e)
                  
 
-"""Receives Messages from peer and prints them to the console."""
-def receive_peer_connections():
-    while True:  # Loops to accept connection and Message from different peers
-        try:
-            new_socket, new_address = listenSocket.accept()
-            threading.Thread(target=handle_peer_connection, args=(new_socket,), daemon=True).start()
-        except:
-            print("Error: failed to accept peer connection.")
-            break
 
 def handle_peer_connection(peerSocket):
     # while True:  # Loops to receive Messages from the same peer
@@ -222,6 +213,49 @@ def handle_peer_connection(peerSocket):
         # break
     """peerSocket.close() """
 
+def chat_with_peer( p_username): #dedicated mode for chatting
+
+    if p_username not in peerConnections:
+        print("Not connected to that peer.")
+        return
+    
+    peerSocket = peerConnections[p_username]
+    print(f"\n[P2P] Chatting with {p_username}. Type 'quit' to end.")
+    chatMode = True
+
+    #inner method to receive messages from peer while in chat mode
+    def receive_in_chat():
+        while chatMode:
+            try:
+                mess = peerSocket.recv(1024)
+                if not mess:
+                    print(f"{p_username} disconnected.")
+                    break
+                else:
+                    msg = ProtocolUtils.decode(mess)
+                    if msg.message == protocol.Messages.TEXT: #sending actual texts p2p
+                        print(f"\n[{p_username}]: {msg.body.decode()}")
+            except Exception as e:
+                print("Error: failed to receive Message from peer.", e)
+                break
+        
+        recveive_thread = threading.Thread(target=receive_in_chat, daemon=True)
+        recveive_thread.start()
+
+        #loop for chat
+        while chatMode:
+            try:
+                message = input("You: ")
+                if message.lower() == "quit":
+                    print(f"\n[P2P] Ending chat with {p_username}.")
+                    break     
+
+                send_message(p_username, message)
+
+            except Exception as e:
+                print("Error: failed to send Message to peer.", e)
+                break
+        print(f"\n[P2P] Chat with {p_username} ended.")     
 
 def handle_p2p_chat(peerSocket, p_username):
     while True:
@@ -234,10 +268,6 @@ def handle_p2p_chat(peerSocket, p_username):
                 msg = ProtocolUtils.decode(mess)
                 if msg.message == protocol.Messages.TEXT: #sending actual texts p2p
                     print(f"\n[{p_username}]: {msg.body.decode()}")
-                    message = input("Message: ", end="", flush=True)
-                    if message == "quit":
-                        break
-                    send_message(p_username, message)
         except Exception as e:
             print("Error: failed to receive Message from peer.", e)
             break
@@ -339,10 +369,8 @@ while True:
                     print(f"- {peer}")
                 target = input("Enter username to chat with: ")
                 if target in peerConnections:
-                    message = input("Type your messages (type 'quit' to end): ")
-                    if message == "quit":
-                        continue
-                    send_message(target, message)
+                   #enter p2p chat
+                    chat_with_peer(target)
                 else:
                     print("Not connected to that peer.")
 
