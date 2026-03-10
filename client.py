@@ -142,7 +142,8 @@ def receive_reply(clientSocket, username):
                    # Start chat thread
                    threading.Thread(target=handle_p2p_chat, args=(peerSocket, p_username), daemon=True).start()
                    print(f"Connected to {p_username}! You can now chat.")
-                   accepted == True                   
+                   accepted == True   
+
                 except Exception as e:
                      print(f"Failed to connect to peer: {e}")
                     
@@ -280,11 +281,12 @@ while True:
         print("Options:")
         print("1. Send chat request to peer")
         print("2. Accept/ reject chat request")
-        print("3. Create group")
-        print("4. Join group")
-        print("5. Leave group")
-        print("6. Send group message")
-        print("7. Logout")
+        print("3. Chat with connected peer")
+        print("4. Create group")
+        print("5. Join group")
+        print("6. Leave group")
+        print("7. Send group message")
+        print("8. Logout")
 
         option = input("Enter option number: ")
 
@@ -330,26 +332,40 @@ while True:
                 else:
                     print("Invalid selection.")
 
-        elif option == "3":
+        elif option == "3": #sending actual messages
+            if peerConnections:
+                print("Connected peers:")
+                for peer in peerConnections.keys():
+                    print(f"- {peer}")
+                target = input("Enter username to chat with: ")
+                if target in peerConnections:
+                    message = input("Type your messages (type 'quit' to end): ")
+                    if message == "quit":
+                        continue
+                    send_message(target, message)
+                else:
+                    print("Not connected to that peer.")
+
+        elif option == "4":
             group_name = input("Enter group name: ")
             print(GroupMembershipManager.createGroup(manager, group_name, username)) #send create group request to server
 
-        elif option == "4":
+        elif option == "5":
             group_name = input("Enter group name to join: ")
             if(GroupMembershipManager.groupExists(manager, group_name)):
                 print(GroupMembershipManager.joinGroup(manager, group_name, username)) #send join group request to server
 
-        elif option == "5":
+        elif option == "6":
             group_name = input("Enter group name to leave: ")
             print(GroupMembershipManager.leaveGroup(manager, group_name, username)) #send leave group request to server
 
-        elif option == "6":
+        elif option == "7":
             group_name = input("Enter group name to send message to: ")
             message = input("Enter message: ")
             
             #send group message request to server
 
-        elif option == "7":
+        elif option == "8":
         #send logout request to server and close socket
             logout_msg = ProtocolUtils(
             headers={
