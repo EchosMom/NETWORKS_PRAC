@@ -96,11 +96,7 @@ class ProtocolHandler:
             replyType = protocol.Messages.ACK if success else protocol.Messages.ERROR
             reply = ProtocolUtils(headers={"MessageType": replyType, "Message": response}, body=b"").encode()
             clientSocket.send(reply)
-        #elif command == protocol.Messages.CHAT_REQUEST:
-            #request to start a p2p connection
-            #recipient = message.headers.get("Recipient")
-            #### must still add P2P connection logic here, this is just a placeholder for now
-            #self.handle_p2p_req(clientSocket, message)
+       
 
     def handleData(self, message, clientSocket):
             command = message.headers.get("Message")

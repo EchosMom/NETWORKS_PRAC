@@ -146,7 +146,7 @@ def receive_reply(clientSocket, username):
                    peerConnections[p_username] = peerSocket
                    # Start chat thread
                    threading.Thread(target=handle_p2p_chat, args=(peerSocket, p_username)).start()
-                   print(f"Connected to {p_username}! You can now chat.")
+                   print(f"Connected to {p_username}! Please select option 3 to chat.")
                    global accepted
                    accepted = True   
 
@@ -169,7 +169,7 @@ def accept_request(clientSocket, username, requester, peerPort):
         
         try:
             clientSocket.send(accept_msg.encode())
-            print(f"Chat request from {requester} accepted. Waiting for connection.")
+            print(f"Chat request from {requester} accepted. Please select option 3 to chat.")
             if not p2p_Listening:
                 listen_for_p2p()
                 threading.Thread(target=receive_peer_connections, daemon=True).start()
@@ -194,7 +194,7 @@ def send_message(username, mess):
                 headers={
                     "MessageType": protocol.MessageType.CHAT,
                     "Message": protocol.Messages.TEXT,
-                    "Sender": username,
+                    "Sender": "Me",
                     "Recipient": username},
                 body= mess.encode())
             
@@ -216,7 +216,6 @@ def handle_peer_connection(peerSocket):
             peer_username = msg.sender
             if msg.message == protocol.Messages.ACK:
                 peerConnections[peer_username] = peerSocket
-                print(f"\n[P2P] Connected to {peer_username}")
             
             threading.Thread(target=handle_p2p_chat, 
                             args=(peerSocket, peer_username), daemon=True).start()
@@ -255,17 +254,17 @@ def chat_with_peer( p_username): #dedicated mode for chatting
                 break
     """
 
-    recveive_thread = threading.Thread(
+    """recveive_thread = threading.Thread(
         target=handle_p2p_chat,
         args=(peerSocket, p_username),
         daemon=True
     )    
-    recveive_thread.start()
+    recveive_thread.start()"""
 
         #loop for chat
     while chatMode:
         try:
-            message = input("You: ")
+            message = input("[Me]: ")
             if message.lower() == "quit":
                     print(f"\n[P2P] Ending chat with {p_username}.")
                     break     
@@ -287,7 +286,11 @@ def handle_p2p_chat(peerSocket, p_username):
             else:
                 msg = ProtocolUtils.decode(mess)
                 if msg.message == protocol.Messages.TEXT: #sending actual texts p2p
-                    print(f"\n[{p_username}]: {msg.body.decode()}")
+                    text =  msg.body.decode().strip()
+                    print(f"DEBUG: '{text}'")
+                    print("\r" + " "*50 + "\r", end="", flush=True)
+                    print(f"\n[{p_username}]: {text}")
+                    print("You: ", end="", flush=True)
         except Exception as e:
             print("Error: failed to receive Message from peer.", e)
             break
