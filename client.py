@@ -19,6 +19,7 @@ peerConnections = {} #track peer connections - username -> (ip, port)
 listenSocket = None
 p2p_Listening = False #flag to indicate if client is currently listening for p2p connection
 chatRequests = {} #track incoming chat requests - list of usernames who sent requests
+accepted = False #track p2p accepts
 
 def listen_for_p2p():
     global p2p_Listening, listenSocket
@@ -94,7 +95,7 @@ def send_request(clientSocket, username, recipient):
     )
     clientSocket.send(request.encode())
     print(f"Chat request sent to {recipient}")
-    # reply = clientSocket.recv(protocol.Protocol.MAX_MESSAGE_BODY_SIZE)
+
     
 """Receives replies from the server and prints them to the console."""
 def receive_reply(clientSocket, username):
@@ -140,10 +141,9 @@ def receive_reply(clientSocket, username):
                    # Start chat thread
                    threading.Thread(target=handle_p2p_chat, 
                                    args=(peerSocket, p_username), daemon=True).start()
-                    
+                   accepted == True
                    print(f"Connected to {p_username}! You can now chat.")
-                   print("Type your messages (type 'quit' to end):")
-
+                                      
                 except Exception as e:
                      print(f"Failed to connect to peer: {e}")
                     
@@ -232,11 +232,14 @@ def handle_p2p_chat(peerSocket, p_username):
                 msg = ProtocolUtils.decode(mess)
                 if msg.message == protocol.Messages.TEXT: #sending actual texts p2p
                     print(f"\n[{p_username}]: {msg.body.decode()}")
-                    print("Type your message:", end="", flush=True)
+                    message = input("Type your message:", end="", flush=True)
+                    if message == "quit":
+                        break
+                    send_message(p_username, message)
         except Exception as e:
             print("Error: failed to receive Message from peer.", e)
             break
-    #discontecting from peer, remove from peerConnections
+    #disconnecting from peer, remove from peerConnections
 
     print(f"\n[P2P] Disconnected from {p_username}")
     if p_username in peerConnections:
@@ -286,9 +289,17 @@ while True:
 
         if option == "1":
             target = input("Enter username to chat with: ")
-            send_request(clientSocket, username, target)
+            try:
+                send_request(clientSocket, username, target)
+            except:
+                print ("Error sending request")
+            message = input("Type your messages (type 'quit' to end):")
+            if message == "quit":
+                break
+            elif accepted:
+                send_message(target, message)
         
-        if option == "2":
+        elif option == "2":
             if chatRequests:
                 print("Pending chat requests:")
                 for requester in chatRequests.keys():
@@ -317,7 +328,7 @@ while True:
 
                 else:
                     print("Invalid selection.")
-            
+
         elif option == "3":
             group_name = input("Enter group name: ")
             print(GroupMembershipManager.createGroup(manager, group_name, username)) #send create group request to server
