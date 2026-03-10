@@ -15,7 +15,7 @@ peerPort = 1600
 mediaPort = 1700 #this is for sending media files, UDP_port
 chunkSize = 65536 #bytes per UDP packet
 
-peerConnections = {} #track peer connections - username -> (ip, port)
+peerConnections = {} #track peer connections - username -> socket
 listenSocket = None
 p2p_Listening = False #flag to indicate if client is currently listening for p2p connection
 chatRequests = {} #track incoming chat requests - list of usernames who sent requests
@@ -94,7 +94,7 @@ def send_request(clientSocket, username, recipient):
         },
         body=b""
     )
-    clientSocket.send(request.encode())
+    clientSocket.send(request.encode())     #msg ent in byte form to the clientSocket to the peer
     print(f"Chat request sent to {recipient}")
 
     
@@ -112,6 +112,11 @@ def receive_reply(clientSocket, username):
                  requester = rp.sender
                  print(f"\n[P2P Request] {requester} wants to chat")
                  chatRequests[requester] = rp
+
+            elif rp.message == protocol.Messages.GROUP_TEXT:
+                sender = rp.sender
+                text = rp.body.decode()
+                print(f"\n[Group message from {sender}]: {text}")
 
             elif type == protocol.MessageType.P2P_OFFER:
                 print("Peer received P2P chat request")
@@ -140,27 +145,26 @@ def receive_reply(clientSocket, username):
 
                    peerConnections[p_username] = peerSocket
                    # Start chat thread
-                   threading.Thread(target=handle_p2p_chat, args=(peerSocket, p_username), daemon=True).start()
+                   threading.Thread(target=handle_p2p_chat, args=(peerSocket, p_username)).start()
                    print(f"Connected to {p_username}! You can now chat.")
-                   accepted == True   
+                   global accepted
+                   accepted = True   
 
                 except Exception as e:
                      print(f"Failed to connect to peer: {e}")
                     
         except Exception as e:
               print(f"Failed to connect to peer: {e}")
-        except Exception as e:
-            print("Error: reply not received.", e)
-            break
             
-def accept_request(clientSocket, username, peerPort):
+def accept_request(clientSocket, username, requester, peerPort):
     
         accept_msg = ProtocolUtils(
             headers={
                 "MessageType": protocol.MessageType.P2P_OFFER,
                 "Message": protocol.Messages.CHAT_ACCEPT,
                 "Sender": username,
-                "Recipient": requester},
+                "Recipient": requester
+            },
             body= f"127.0.0.1:{peerPort}".encode())
         
         try:
@@ -190,7 +194,7 @@ def send_message(username, mess):
                 headers={
                     "MessageType": protocol.MessageType.CHAT,
                     "Message": protocol.Messages.TEXT,
-                    "Sender": 'Me',
+                    "Sender": username,
                     "Recipient": username},
                 body= mess.encode())
             
@@ -208,8 +212,8 @@ def handle_peer_connection(peerSocket):
             print("Peer disconnected.")
             # break
         else:
-            peer_username = msg.sender
             msg = ProtocolUtils.decode(Message)
+            peer_username = msg.sender
             if msg.message == protocol.Messages.ACK:
                 peerConnections[peer_username] = peerSocket
                 print(f"\n[P2P] Connected to {peer_username}")
@@ -227,11 +231,14 @@ def chat_with_peer( p_username): #dedicated mode for chatting
         print("Not connected to that peer.")
         return
     
+    # does not check if other peer (target peer is connected)
+
     peerSocket = peerConnections[p_username]
     print(f"\n[P2P] Chatting with {p_username}. Type 'quit' to end.")
     chatMode = True
 
     #inner method to receive messages from peer while in chat mode
+    """
     def receive_in_chat():
         while chatMode:
             try:
@@ -246,8 +253,13 @@ def chat_with_peer( p_username): #dedicated mode for chatting
             except Exception as e:
                 print("Error: failed to receive Message from peer.", e)
                 break
-        
-    recveive_thread = threading.Thread(target=receive_in_chat, daemon=True)
+    """
+
+    recveive_thread = threading.Thread(
+        target=handle_p2p_chat,
+        args=(peerSocket, p_username),
+        daemon=True
+    )    
     recveive_thread.start()
 
         #loop for chat
@@ -305,6 +317,7 @@ if __name__ == '__main__':
         else:
             username, clientSocket = login_result
             listen_for_p2p()
+            threading.Thread(target=receive_peer_connections, daemon=True).start()
             threading.Thread(target=receive_reply, 
                         args=(clientSocket, username), daemon=True).start()
             break
@@ -349,7 +362,7 @@ while True:
                 if selected in chatRequests:
                     choice = input(f"Accept chat request from {selected}? (y/n): ")
                     if choice.lower() == "y":
-                        accept_request(clientSocket, username, peerPort) # removed chatRequests[selected]
+                        accept_request(clientSocket, username, selected, peerPort) # removed chatRequests[selected]
                         del chatRequests[selected]
                     else:
                         
@@ -369,6 +382,8 @@ while True:
 
                 else:
                     print("Invalid selection.")
+            else:
+                print("No chat requests at the moment")
 
         elif option == "3": #sending actual messages
             if peerConnections:
@@ -381,6 +396,8 @@ while True:
                     chat_with_peer(target)
                 else:
                     print("Not connected to that peer.")
+            else:
+                print("No connected peers")
 
         elif option == "4":
             group_name = input("Enter group name: ")
@@ -397,9 +414,20 @@ while True:
 
         elif option == "7":
             group_name = input("Enter group name to send message to: ")
-            message = input("Enter message: ")
-            
-            #send group message request to server
+            if(GroupMembershipManager.groupExists(manager, group_name)):
+                message = input("Enter message: ")
+            group_msg = ProtocolUtils(
+                headers={
+                    "MessageType": protocol.MessageType.DATA,
+                    "Message": protocol.Messages.GROUP_TEXT,
+                    "Sender": username,
+                    "Recipient": group_name
+                },
+                body=message.encode()
+            )
+
+            clientSocket.send(group_msg.encode())
+            print("Group message sent to server.")            #send group message request to server
 
         elif option == "8":
         #send logout request to server and close socket
@@ -416,6 +444,8 @@ while True:
             clientSocket.send(logout_msg.encode())
             print("Logged out.")
             clientSocket.close()
+            listenSocket.close()
+            peerConnections.close()
             flag = False
         else:
             print("Invalid choice")
