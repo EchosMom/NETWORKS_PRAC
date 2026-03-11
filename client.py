@@ -171,11 +171,16 @@ def accept_request(clientSocket, username, requester, peerPort):
         
         try:
             clientSocket.send(accept_msg.encode())
+            
+            #if requester in peerConnections:
+            if requester != username:
+                    peerConnections[requester] = peerSocket
+
             with printLock:
                 print(f"Chat request from {requester} accepted. Please select option 3 to chat.")
-            if not p2p_Listening:
+            """if not p2p_Listening:
                 listen_for_p2p()
-                threading.Thread(target=receive_peer_connections, daemon=True).start()
+                threading.Thread(target=receive_peer_connections, daemon=True).start()"""
 
         except Exception as e:
             with printLock:
@@ -299,7 +304,8 @@ def handle_peer_connection(peerSocket):
             else:
                 msg = ProtocolUtils.decode(Message)
                 peer_username = msg.sender
-                if msg.message == protocol.Messages.ACK:
+                # if msg.message == protocol.Messages.ACK:
+                if peer_username != username:
                     peerConnections[peer_username] = peerSocket
                 
                 threading.Thread(target=handle_p2p_chat, 
