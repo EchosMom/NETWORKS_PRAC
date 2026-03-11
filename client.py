@@ -201,7 +201,87 @@ def send_message(username, mess):
             peerConnections[username].send(msg.encode())
         except Exception as e:
             print("Error: Message not sent.", e)
+
+def receive_media():
+    global mediaSocket
+    while True:
+        try:
+            data = mediaSocket.recvfrom(65536)
+            addr = mediaSocket.recvfrom(65536)
+            mess = ProtocolUtils.decode(data)
+
+            if mess.message == protocol.Messages.MEDIA:
+                sender = mess.sender
+                recipient = mess.recipient
+                file = mess.headers.get("FileName") #this can come from #kwargs in the protocol header
+                NumChunks = int(mess.headers.get("TotalChunks"))
+                chunkIndex = int(mess.headers.get("ChunkIndex"))
+                chunkData = mess.body
+
+                keys = (sender, file)
+                with incoming_media_lock:
+                    if keys not in incoming_media_lock:
+                        incoming_media[keys] = {
+                            'totalChunks': NumChunks,
+                            'chunks' : [None]*NumChunks,
+                            'file' : [None]
+                        }
+                    entry = incoming_media[key]
+                    entry['chunks'][chunkIndex] = chunkData
+
+                    #check if all chunks received, cause UDP is unreliable
+                    if all (entry['chunks']):
+                        completeData = b''.join(entry['chunks']) #put chunks together and save
+                        FileBase, FileExt = os.path.splitext(file) #new file to prevent overriidng,[FileBase.FileExt]
+                        save_name = f"received_{sender}_{FileBase}{FileExt}"
+
+                        with open(save_name, 'wb') as f:
+                            f.write(completeData)
+                        print(f"\n[Media] Received file '{file}' from {sender}, saved as 'save_name'" )
+                        del incoming_media[keys]
+
+        except Exception as e:
+            print(f"[Media receive Error]{e}")
                  
+def send_media(p_username, filePath):
+    if p_username not in peerConnections:
+        print("Not connected to that peer.")
+        return
+    
+    try: #getting IP from TCP socket
+        peerSocket = peerConnections[p_username]
+        peerIP = peerSocket.getpeername()[0]
+        peerAddress = (peerIP, mediaPort)
+
+        #readign file and spliting to chunks
+        with open(filePath, 'rb') as f:
+            fileData = f.read()
+        NumChunks = (len(fileData)+chunkSize-1)//chunkSize
+        fileName = os.path.basename(filePath)
+
+        print(f"Sending '{fileName}' to {p_username} ({NumChunks} chunks. . .)")
+
+        for i in range(NumChunks):
+            start = i*chunkSize
+            end = start+chunkSize
+            chunk = fileData[start:end]
+
+            headers = {
+                "MessageType": protocol.MessageType.DATA,
+                "Message": protocol.Messages.MEDIA,
+                "Sender": username,  # global username from login
+                "Recipient": p_username,
+                "File": fileName,
+                "TotalChunks": str(NumChunks),
+                "ChunkIndex": str(i)
+             }
+            mess = ProtocolUtils(headers=headers, body=chunk)
+            mediaSocket.sendto(mess.encode(), peerAddress)
+        print(f"File '{fileName}' sent successfully.")
+    except FileNotFoundError:
+        print("File not Found.")
+    except Exception as e:
+        print(f"Errot sending media: {e}")
 
 
 def handle_peer_connection(peerSocket):
@@ -305,7 +385,6 @@ def handle_p2p_chat(peerSocket, p_username):
         pass
 
 
-#must still add UDP for media transfer, and p2p connection handling (peer discovery, connection setup, etc.)
 
 
 if __name__ == '__main__':
@@ -323,6 +402,9 @@ if __name__ == '__main__':
             threading.Thread(target=receive_peer_connections, daemon=True).start()
             threading.Thread(target=receive_reply, 
                         args=(clientSocket, username), daemon=True).start()
+            mediaSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            mediaSocket.bind("0.0.0.0", mediaPort)
+            threading.Thread(target=receive_media, daemon=True.start())
             break
 
 flag = True
@@ -405,19 +487,33 @@ while True:
                 print("No connected peers")
 
         elif option == "4":
+            if peerConnections:
+                print("Connected peers:")
+                for peer in peerConnections.keys():
+                      print(f"- {peer}")
+                target = input("Enter username to send media: ")
+                if target in peerConnections:
+                      filepath = input("Enter path to media file: ")
+                      send_media(target, filepath)
+                else:
+                     print("Not connected to that peer.")
+            else:
+                print("No connected peers.")
+
+        elif option == "5":
             group_name = input("Enter group name: ")
             print(GroupMembershipManager.createGroup(manager, group_name, username)) #send create group request to server
 
-        elif option == "5":
+        elif option == "6":
             group_name = input("Enter group name to join: ")
             if(GroupMembershipManager.groupExists(manager, group_name)):
                 print(GroupMembershipManager.joinGroup(manager, group_name, username)) #send join group request to server
 
-        elif option == "6":
+        elif option == "7":
             group_name = input("Enter group name to leave: ")
             print(GroupMembershipManager.leaveGroup(manager, group_name, username)) #send leave group request to server
 
-        elif option == "7":
+        elif option == "8":
             group_name = input("Enter group name to send message to: ")
             if(GroupMembershipManager.groupExists(manager, group_name)):
                 message = input("Enter message: ")
@@ -434,7 +530,7 @@ while True:
             clientSocket.send(group_msg.encode())
             print("Group message sent to server.")            #send group message request to server
 
-        elif option == "8":
+        elif option == "9":
         #send logout request to server and close socket
             logout_msg = ProtocolUtils(
             headers={
