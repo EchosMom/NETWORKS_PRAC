@@ -344,7 +344,6 @@ def handle_p2p_chat(peerSocket, p_username):
                 msg = ProtocolUtils.decode(mess)
                 if msg.message == protocol.Messages.TEXT: #sending actual texts p2p
                     text =  msg.body.decode().strip()
-                    print(f"DEBUG: '{text}'")
                     print("\r" + " "*50 + "\r", end="", flush=True)
                     print(f"\n[{p_username}]: {text}")
                     print("You: ", end="", flush=True)
