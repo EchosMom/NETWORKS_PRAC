@@ -390,7 +390,7 @@ def handle_p2p_chat(peerSocket, p_username):
                     text =  msg.body.decode().strip()
                     with printLock:
                         print("\r" + " "*50 + "\r", end="", flush=True)
-                        print(f"\n[{p_username}]: {text}", flush=True)
+                        print(f"\n[{p_username}]: {text}\n", flush=True)
                         print("[Me]: ", end="", flush=True) 
                       
         except Exception as e:
