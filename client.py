@@ -226,7 +226,7 @@ def receive_media():
                             'chunks' : [None]*NumChunks,
                             'file' : [None]
                         }
-                    entry = incoming_media[key]
+                    entry = incoming_media[keys]
                     entry['chunks'][chunkIndex] = chunkData
 
                     #check if all chunks received, cause UDP is unreliable
