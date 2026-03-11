@@ -1,8 +1,5 @@
 #defines format for protocol messages
 
-from wsgiref import headers
-
-
 class MessageType:
     COMMAND = "COMMAND"
     CONTROL = "CONTROL"

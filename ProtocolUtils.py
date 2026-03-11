@@ -24,12 +24,19 @@ class ProtocolUtils:
         return self.headers.get("Recipient")
     
     def encode(self):
+        #remove duplicates
+        headers = dict(self.headers)
+
+        headers.pop("MessageType", None)
+        headers.pop("Message", None)
+        headers.pop("Sender", None)
+
         #convert bytes for sending
         return protocol.Protocol.encodeMessage(
             self.message_type,
             self.message,
             self.sender,
-            **self.headers,
+            **headers,
             body=self.body
         )
     

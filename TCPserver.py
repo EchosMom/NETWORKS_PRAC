@@ -37,6 +37,11 @@ def handle_client(clientSocket, manager):
                 if mess.message == protocol.Messages.LOGIN:
                     username = mess.headers.get("Username")
                     password = mess.headers.get("Password")
+                    peer_port = mess.headers.get("PeerPort")
+
+                    if clientSocket in clientInfo:
+                        clientInfo[clientSocket]["peer_port"] = peer_port
+
                     auth_success, response = manager.authenticate(username, password)
 
                     if auth_success:
@@ -64,8 +69,8 @@ def handle_client(clientSocket, manager):
                     continue
                 
                 #noraml chat msg
-                if msg_type == protocol.MessageType.CHAT:
-                    broadcast(mess.encode(), clientSocket)
+                #if msg_type == protocol.MessageType.CHAT:
+                    #broadcast(mess.encode(), clientSocket)
 
                 if msg_type == protocol.MessageType.P2P_REQ:
                     handle_p2p_req(clientSocket, mess)
@@ -133,8 +138,10 @@ def handle_p2p_req(requestor_socket, mess):
 """forward p2p conn data to target client"""
 def forward_to_target(mess):
     target_usr = mess.recipient
+    sender_usr = mess.sender
+
     for sock, info in clientInfo.items():
-        if info.get("username") == target_usr:
+        if info.get("username") == target_usr and target_usr != sender_usr:
             try:
                 sock.send(mess.encode())
                 print(f"Forwarded P2P offer to {target_usr}")
@@ -183,7 +190,9 @@ def send_group_message(groupName, sender, text):
                 sock.send(msg.encode())
                 sent+=1
             except:
+                disconnect_client(sock)
                 return f"Oops! cannot send message to {username}"
+            
     return f"Message sent to {sent} members"
 
 """remove disconnected clients"""
@@ -222,10 +231,14 @@ def start_server():
             "address": clientAddress,
             "username": None,            #will be set after login
             "UDP_PORT": 1501              # add udp port for p2p
+            #"peer_port": None
         }
 
-        thread = threading.Thread(target=handle_client, args=(clientSocket,manager))
-        thread.daemon = True        #thread closes when main program exits.
+        thread = threading.Thread(
+            target=handle_client, 
+            args=(clientSocket,manager),
+            daemon = True
+        )
         thread.start()
 
 if __name__ == "__main__":
