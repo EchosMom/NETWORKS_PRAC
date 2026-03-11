@@ -331,33 +331,20 @@ def chat_with_peer(username, p_username): #dedicated mode for chatting
     peerSocket = peerConnections[p_username]
     with printLock:
         print(f"\n[P2P] Chatting with {p_username}. Type 'quit' to end.")
-    chatMode = True
+   
 
-    # loop for chat in diff method
-    def receive_messages():
-        while chatMode:
-            try:
-                mess = peerSocket.recv(1024)
-                if not mess:
-                    print(f"\n{p_username} disconnected")
-                    break
-
-                else:
-                    msg = ProtocolUtils.decode(mess)
-                    if msg.message == protocol.Messages.TEXT:
-                        text = msg.body.decode().strip()
-                        with printLock:
-                            print(f"\n[{p_username}]: {text}")
-                            print("[Me]: ", end="", flush=True)
-            except Exception as e:
-                print(f"\nError receiving from {p_username}: {e}")
+    while True: 
+        try:
+            mess= input("[Me: ]")
+            if mess.lower() == "quit":
+                with printLock:
+                    print(f"\n[P2P Ending chat with {p_username}]")
                 break
-    
-    receiver_thread = threading.Thread(
-        target = receive_messages,
-        daemon= True
-    )
-    receiver_thread.start()
+            if mess.strip():
+                send_message(username, p_username, mess)
+        except Exception as e:
+            print("Error sending message: ",e)
+            break
 
     # Main thread handles sending
     while chatMode:
@@ -402,7 +389,7 @@ def handle_p2p_chat(peerSocket, p_username):
                     text =  msg.body.decode().strip()
                     with printLock:
                         print(f"\n[{p_username}]: {text}")
-                        print("[Me]: ", end="", flush=True)
+                      
         except Exception as e:
             print("Error: failed to receive Message from peer.", e)
             break
