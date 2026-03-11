@@ -17,7 +17,7 @@ chunkSize = 6000 #bytes per UDP packet
 mediaSocket = None
 
 incoming_media = {}
-incoming_media_lock = threading.lock()
+incoming_media_lock = threading.Lock()
 peerConnections = {} #track peer connections - username -> socket
 listenSocket = None
 p2p_Listening = False #flag to indicate if client is currently listening for p2p connection
