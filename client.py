@@ -389,9 +389,9 @@ def handle_p2p_chat(peerSocket, p_username):
                 if msg.message == protocol.Messages.TEXT: #sending actual texts p2p
                     text =  msg.body.decode().strip()
                     with printLock:
-                        print("\r" + " " * 50 + "\r", end="", flush=True)
+                        print("\r" + " "*50 + "\r", end="", flush=True)
                         print(f"\n[{p_username}]: {text}", flush=True)
-                        print("Me: ", end="", flush=True) 
+                        print("[Me]: ", end="", flush=True) 
                       
         except Exception as e:
             print("Error: failed to receive Message from peer.", e)
