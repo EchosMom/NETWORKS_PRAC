@@ -14,10 +14,10 @@ serverPort = 1500
 peerPort = 1600
 mediaPort = 1700 #this is for sending media files, UDP_port
 chunkSize = 6000 #bytes per UDP packet
-mediaSocket = None
+#mediaSocket = None
 
-incoming_media = {}
-incoming_media_lock = threading.lock()
+#incoming_media = {}
+#incoming_media_lock = threading.lock()
 peerConnections = {} #track peer connections - username -> socket
 listenSocket = None
 p2p_Listening = False #flag to indicate if client is currently listening for p2p connection
@@ -202,7 +202,7 @@ def send_message(username, mess):
         except Exception as e:
             print("Error: Message not sent.", e)
 
-def receive_media():
+'''def receive_media():
     global mediaSocket
     while True:
         try:
@@ -281,7 +281,7 @@ def send_media(p_username, filePath):
     except FileNotFoundError:
         print("File not Found.")
     except Exception as e:
-        print(f"Errot sending media: {e}")
+        print(f"Errot sending media: {e}")'''
 
 
 def handle_peer_connection(peerSocket):
@@ -316,30 +316,7 @@ def chat_with_peer( p_username): #dedicated mode for chatting
     print(f"\n[P2P] Chatting with {p_username}. Type 'quit' to end.")
     chatMode = True
 
-    #inner method to receive messages from peer while in chat mode
-    """
-    def receive_in_chat():
-        while chatMode:
-            try:
-                mess = peerSocket.recv(1024)
-                if not mess:
-                    print(f"{p_username} disconnected.")
-                    break
-                else:
-                    msg = ProtocolUtils.decode(mess)
-                    if msg.message == protocol.Messages.TEXT: #sending actual texts p2p
-                        print(f"\n[{p_username}]: {msg.body.decode()}")
-            except Exception as e:
-                print("Error: failed to receive Message from peer.", e)
-                break
-    """
-
-    """recveive_thread = threading.Thread(
-        target=handle_p2p_chat,
-        args=(peerSocket, p_username),
-        daemon=True
-    )    
-    recveive_thread.start()"""
+ 
 
         #loop for chat
     while chatMode:
@@ -402,9 +379,9 @@ if __name__ == '__main__':
             threading.Thread(target=receive_peer_connections, daemon=True).start()
             threading.Thread(target=receive_reply, 
                         args=(clientSocket, username), daemon=True).start()
-            mediaSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            ''' mediaSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             mediaSocket.bind("0.0.0.0", mediaPort)
-            threading.Thread(target=receive_media, daemon=True.start())
+            threading.Thread(target=receive_media, daemon=True.start())'''
             break
 
 flag = True
@@ -486,19 +463,19 @@ while True:
             else:
                 print("No connected peers")
 
-        elif option == "4":
-            if peerConnections:
+        #elif option == "4":
+            #if peerConnections:
                 print("Connected peers:")
-                for peer in peerConnections.keys():
-                      print(f"- {peer}")
-                target = input("Enter username to send media: ")
-                if target in peerConnections:
-                      filepath = input("Enter path to media file: ")
-                      send_media(target, filepath)
-                else:
-                     print("Not connected to that peer.")
-            else:
-                print("No connected peers.")
+                #for peer in peerConnections.keys():
+                    #  print(f"- {peer}")
+                #target = input("Enter username to send media: ")
+               # if target in peerConnections:
+                 #     filepath = input("Enter path to media file: ")
+                #      send_media(target, filepath)
+              #  else:
+                  #   print("Not connected to that peer.")
+           # else:
+                #print("No connected peers.")
 
         elif option == "5":
             group_name = input("Enter group name: ")
@@ -517,7 +494,7 @@ while True:
             group_name = input("Enter group name to send message to: ")
             if(GroupMembershipManager.groupExists(manager, group_name)):
                 message = input("Enter message: ")
-            group_msg = ProtocolUtils(
+                group_msg = ProtocolUtils(
                 headers={
                     "MessageType": protocol.MessageType.DATA,
                     "Message": protocol.Messages.GROUP_TEXT,
@@ -555,21 +532,8 @@ while True:
 
     
 
-    # Start UDP media receiver
-    #threading.Thread(target=receive_media, args=(udpRecvSocket,), daemon=True).start()
-    #
-'''def receive_media():
-        filename = "received_media.bin"   
-        file = open(filename, "wb")       
-        print("Receiving media...")
+    
 
-        while True:
-            data, addr = mediareceiveSocket.recvfrom(chunkSize)
-            if data == b"__END__":        
-                break
-            file.write(data)              
-        file.close()
-        print(f"Media saved to {filename}")  '''
         
   
     
