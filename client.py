@@ -331,12 +331,14 @@ def chat_with_peer(username, p_username): #dedicated mode for chatting
     peerSocket = peerConnections[p_username]
     with printLock:
         print(f"\n[P2P] Chatting with {p_username}. Type 'quit' to end.")
+        chatMode: True
    
 
     while True: 
         try:
             mess= input("[Me]: ")
             if mess.lower() == "quit":
+                chatMode = False
                 with printLock:
                     print(f"\n[P2P Ending chat with {p_username}]")
                 break
@@ -390,7 +392,7 @@ def handle_p2p_chat(peerSocket, p_username):
                     text =  msg.body.decode().strip()
                     with printLock:
                         print("\r" + " "*50 + "\r", end="", flush=True)
-                        print(f"\n[{p_username}]: {text}\n", flush=True)
+                        print(f"\n[{p_username}]: {text}", flush=True)
                         print("[Me]: ", end="", flush=True) 
                       
         except Exception as e:
