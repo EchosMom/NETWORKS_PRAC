@@ -335,7 +335,7 @@ def chat_with_peer(username, p_username): #dedicated mode for chatting
 
     while True: 
         try:
-            mess= input("[Me: ]")
+            mess= input("[Me]: ")
             if mess.lower() == "quit":
                 with printLock:
                     print(f"\n[P2P Ending chat with {p_username}]")
@@ -345,6 +345,7 @@ def chat_with_peer(username, p_username): #dedicated mode for chatting
         except Exception as e:
             print("Error sending message: ",e)
             break
+
 
     # Main thread handles sending
     while chatMode:
@@ -388,7 +389,9 @@ def handle_p2p_chat(peerSocket, p_username):
                 if msg.message == protocol.Messages.TEXT: #sending actual texts p2p
                     text =  msg.body.decode().strip()
                     with printLock:
-                        print(f"\n[{p_username}]: {text}")
+                        print("\r" + " " * 50 + "\r", end="", flush=True)
+                        print(f"\n[{p_username}]: {text}", flush=True)
+                        print("Me: ", end="", flush=True) 
                       
         except Exception as e:
             print("Error: failed to receive Message from peer.", e)
