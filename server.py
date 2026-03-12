@@ -38,9 +38,11 @@ def handle_client(clientSocket, manager):
                     username = mess.headers.get("Username")
                     password = mess.headers.get("Password")
                     peer_port = mess.headers.get("PeerPort")
+                    udp_port = mess.headers.get("UDP_port")
 
                     if clientSocket in clientInfo:
                         clientInfo[clientSocket]["peer_port"] = peer_port
+                        clientInfo[clientSocket]["UDP_port"] =udp_port
 
                     auth_success, response = manager.authenticate(username, password)
 
@@ -68,9 +70,22 @@ def handle_client(clientSocket, manager):
                     clientSocket.send(reply.encode())
                     continue
                 
-                #noraml chat msg
-                #if msg_type == protocol.MessageType.CHAT:
-                    #broadcast(mess.encode(), clientSocket)
+                if msg_content == protocol.Messages.GET_PEER_UDP_INFO:
+                    target = mess.body.decode()
+
+                    for sock, info in clientInfo.items():
+                        if info.get("username") ==  target:
+                            peer_info = ProtocolUtils(
+                              headers={
+                               "MessageType": protocol.MessageType.CONTROL,
+                               "Message": protocol.Messages.PEER_UDP_INFO,
+                               "Sender": "server",
+                               "Recipient": mess.sender   
+                              },
+                              body=f"{info['address'][0]:info.get('udp_port',1700)}".encode()
+                            )
+                            clientSocket.send(peer_info.encode())
+                            break
 
                 if msg_type == protocol.MessageType.P2P_REQ:
                     handle_p2p_req(clientSocket, mess)
@@ -193,7 +208,7 @@ def send_group_message(groupName, sender, text):
             try:
                 sock.send(msg.encode())
                 print(f"DEBUG: msg sent to {username}")
-            except:
+            except Exception as e:
                 print(f"DEBUG: msg failed to send to {username}: {e}")
                 disconnect_client(sock)
             
@@ -220,25 +235,24 @@ def getMembers(groupName, sender):
             sender_socket = sock
             break
     
-        str_members = ",".join(members)
+    str_members = ",".join(members)
 
-        msg = ProtocolUtils(
-            headers={
-                "MessageType": protocol.MessageType.CONTROL,
-                "Message": protocol.Messages.CHAT_INFO,
-                "Sender": "server",
-                "Recipient": groupName
-            },
-            body=str_members.encode()
-        )
-        try:
+    msg = ProtocolUtils(
+         headers={
+            "MessageType": protocol.MessageType.CONTROL,
+            "Message": protocol.Messages.CHAT_INFO,
+            "Sender": "server",
+            "Recipient": groupName
+         },
+        body=str_members.encode()
+    )
+    try:
             sender_socket.send(msg.encode())
             return f"Group members sent to {sender}"
-        except:
+    except:
             disconnect_client(sender_socket)
             return f"Error: Cannot send group member list to {sender}"
-    else:
-        return f"Error: {sender} is not online"
+    
 
 
 """remove disconnected clients"""

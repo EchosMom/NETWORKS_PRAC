@@ -18,10 +18,9 @@ serverPort = 1500
 peerPort = 1600
 mediaPort = 1700 #this is for sending media files, UDP_port
 chunkSize = 6000 #bytes per UDP packet
-#mediaSocket = None
-
-#incoming_media = {}
-#incoming_media_lock = threading.lock()
+mediaSocket = None
+incoming_media = {}
+incoming_media_lock = threading.Lock()
 printLock = threading.Lock()
 peerConnections = {} #track peer connections - username -> socket
 listenSocket = None
@@ -404,7 +403,7 @@ def receive_media():
         except Exception as e:
             print(f"[Media receive Error]{e}")
                  
-def send_media(p_username, filePath):
+def send_media(username, p_username, filePath):
     if p_username not in peerConnections:
         print("Not connected to that peer.")
         return
@@ -430,7 +429,7 @@ def send_media(p_username, filePath):
             headers = {
                 "MessageType": protocol.MessageType.DATA,
                 "Message": protocol.Messages.MEDIA,
-                "Sender": username,  # global username from login
+                "Sender": username,  
                 "Recipient": p_username,
                 "File": fileName,
                 "TotalChunks": str(NumChunks),
@@ -606,9 +605,9 @@ if __name__ == '__main__':
             """threading.Thread(target=handle_group_chat, 
                  args=(clientSocket, username), 
                  daemon=True).start()"""
-            ''' mediaSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            mediaSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             mediaSocket.bind("0.0.0.0", mediaPort)
-            threading.Thread(target=receive_media, daemon=True.start())'''
+            threading.Thread(target=receive_media, daemon=True.start())
             break
 
 flag = True
@@ -693,7 +692,7 @@ while flag:
             target = input("Enter username to send media: ")
             if target in peerConnections:
                  filepath = input("Enter path to media file: ")
-                 send_media(target, filepath)
+                 send_media(username, target, filepath)
             else:
               print("Not connected to that peer.")
         else:

@@ -30,6 +30,8 @@ class Messages:
         ACK = "ACK"
         ERROR = "ERROR"
         CHAT_INFO = "CHAT_INFO"
+        GET_PEER_UDP_INFO = "GET_PEER_UDP_INFO"
+        PEER_UDP_INFO = "PEER_UDP_INFO"
 
         #data messages
         TEXT = "TEXT"
