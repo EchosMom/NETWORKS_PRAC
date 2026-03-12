@@ -332,23 +332,8 @@ def send_message(username, p_username, mess):
         except Exception as e:
             print("Error: Peer message not sent.", e)
 
-""" UNUSED ??
-def send_group_message(username, group_member, mess):
-    if group_member in groupMembers:
-        try:
-            msg = ProtocolUtils(
-                headers={
-                    "MessageType": protocol.MessageType.CHAT,
-                    "Message": protocol.Messages.TEXT,
-                    "Sender": username,
-                    "Recipient": group_member},
-                body= mess.encode())
-            
-            groupMembers[group_member].send(msg.encode())
-        except Exception as e:
-            print("Error: Group message not sent.", e)
 
-"""
+
 
 #UDP
 '''def receive_media():
@@ -531,7 +516,7 @@ def chat_with_group(group_name):
     with printLock:
         print(f"\n[P2P] Chatting with {group_name}. Type 'quit' to end.")
 
-    threading.current_thread().in_group_chat = True     #flag for receive reply method
+    threading.current_thread().in_group_chat = True     # flag for receive reply method
     chatMode = True
 
     while chatMode:
@@ -543,26 +528,26 @@ def chat_with_group(group_name):
                     print(f"\n[P2P] Ending chat with {group_name}.")
                 chatMode = False
                 break
-            
+
             # server handles msging multiple ppl
             if message.strip():
                 with printLock:
-                        #sys.stdout.write(f"[{username}]: {message}\n")
-                        #sys.stdout.write(f"[{username}]: ")
-                        #sys.stdout.flush()       
+                    # sys.stdout.write(f"[{username}]: {message}\n")
+                    # sys.stdout.write(f"[{username}]: ")
+                    # sys.stdout.flush()
+                    pass
 
                 group_msg = ProtocolUtils(
-                        headers={
-                            "MessageType": protocol.MessageType.DATA,
-                            "Message": protocol.Messages.GROUP_TEXT,
-                            "Sender": username,
-                            "Recipient": group_name
-                        },
-                        body=message.encode()
-                    )
+                    headers={
+                        "MessageType": protocol.MessageType.DATA,
+                        "Message": protocol.Messages.GROUP_TEXT,
+                        "Sender": username,
+                        "Recipient": group_name,
+                    },
+                    body=message.encode(),
+                )
                 try:
                     clientSocket.send(group_msg.encode())
-            
                 except Exception as e:
                     print("Error: Failed to send message to group chat.", e)
                     break
@@ -570,41 +555,11 @@ def chat_with_group(group_name):
         except Exception as e:
             print("Error: Failed.", e)
             break
-    threading.current_thread().in_group_chat = False        #update flag
 
+    threading.current_thread().in_group_chat = False        # update flag
     print(f"\n[P2P] Chat with {group_name} ended.")
 
-""" UNSUSED ??
-#handler for receiving msgs
-def handle_group_chat(clientSocket, username):
-    while True:
-        try:
-            data = clientSocket.recv(protocol.Protocol.MAX_MESSAGE_BODY_SIZE)
-            if not data:
-                print("Server disconnected from group chat")
-                break
 
-            msg = ProtocolUtils.decode(data)
-
-            if msg.message == protocol.Messages.GROUP_TEXT:
-                sender = msg.sender
-                group_name = msg.recipient
-                text = msg.body.decode()
-                
-                with printLock:
-                    print(f"[{sender}]: {text}")
-
-            elif msg.message == protocol.Messages.CHAT_INFO:
-                group_name = msg.recipient
-                members = msg.body.decode().split(",")
-                with printLock:
-                    print(f"\n[Group {group_name}] Members online: {', '.join(members)}")
-                    
-        except Exception as e:
-            print(f"Error in group chat handler: {e}")
-            break
-            
-"""
 
 if __name__ == '__main__':
     while True:
@@ -804,13 +759,6 @@ exit()
 
     
 
-"""elif rp.message == protocol.Messages.GROUP_TEXT:
-                sender = rp.sender
-                text = rp.body.decode().strip()
-                group_name = rp.recipient
-                with printLock:
-                    print(f"\n{group_name} group message:")
-                    print(f"\n[{sender}]: {text}")"""
 
         
   
