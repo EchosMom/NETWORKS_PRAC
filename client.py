@@ -366,8 +366,7 @@ def receive_media():
     global mediaSocket
     while True:
         try:
-            data = mediaSocket.recvfrom(65536)
-            addr = mediaSocket.recvfrom(65536)
+            data, addr = mediaSocket.recvfrom(65536)
             mess = ProtocolUtils.decode(data)
 
             if mess.message == protocol.Messages.MEDIA:
@@ -390,7 +389,7 @@ def receive_media():
                     entry['chunks'][chunkIndex] = chunkData
 
                     #check if all chunks received, cause UDP is unreliable
-                    if all (entry['chunks']):
+                    if all (chunk is not None for chunk in entry['chunks']):
                         completeData = b''.join(entry['chunks']) #put chunks together and save
                         FileBase, FileExt = os.path.splitext(file) #new file to prevent overriidng,[FileBase.FileExt]
                         save_name = f"received_{sender}_{FileBase}{FileExt}"
