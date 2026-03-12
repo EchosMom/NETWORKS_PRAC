@@ -520,10 +520,10 @@ def handle_p2p_chat(peerSocket, p_username, username):
                         continue
                     text =  msg.body.decode().strip()
                     with printLock:
-                        sys.stdout.write("\r" + " " * 80 + "\r")       #clear current input line
+                        sys.stdout.write("\r" + "" * 80 + "\r")       #clear current input line
                         sys.stdout.write(f"[{p_username}]: {text}")
                         #redraw prompt
-                        #sys.stdout.write(f"\n[{username}]: ")       
+                        sys.stdout.write(f"\n[{username}]: ")       
 
         except Exception as e:
             print("Error: failed to receive Message from peer.", e)
@@ -618,20 +618,19 @@ manager = GroupMembershipManager()
 print("You are interacting with server.")
 #while True:
 while flag:
-    with printLock:
-        print("Options:")
-        print("1. Send chat request to peer")
-        print("2. Accept/ reject chat request")
-        print("3. Send text to connected peer")
-        print("4. Send media to connected peer")
-        print("5. Create group")
-        print("6. Join group")
-        print("7. Leave group")
-        print("8. Send group chat request to server")
-        print("9. Send message to group chat")
-        print("10. Logout")
-    
-        option = input("Enter option number: ")
+    print("Options:")
+    print("1. Send chat request to peer")
+    print("2. Accept/ reject chat request")
+    print("3. Send text to connected peer")
+    print("4. Send media to connected peer")
+    print("5. Create group")
+    print("6. Join group")
+    print("7. Leave group")
+    print("8. Send group chat request to server")
+    print("9. Send message to group chat")
+    print("10. Logout")
+
+    option = input("Enter option number: ")
 
     if option == "1":
         target = input("Enter username to chat with: ")
