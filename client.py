@@ -542,7 +542,7 @@ def chat_with_group(group_name):
     with printLock:
         print(f"\n[P2P] Chatting with {group_name}. Type 'quit' to end.")
 
-    threading.current_thread().in_group_chat = True     # flag for receive reply method
+    #threading.current_thread().in_group_chat = True     # flag for receive reply method
     chatMode = True
 
     while chatMode:
@@ -556,27 +556,29 @@ def chat_with_group(group_name):
                 break
 
             # server handles msging multiple ppl
-            if message.strip():
-                with printLock:
+            #if message.strip():
+                #with printLock:
                     # sys.stdout.write(f"[{username}]: {message}\n")
                     # sys.stdout.write(f"[{username}]: ")
                     # sys.stdout.flush()
-                    pass
+                    #pass
 
-                group_msg = ProtocolUtils(
-                    headers={
-                        "MessageType": protocol.MessageType.DATA,
-                        "Message": protocol.Messages.GROUP_TEXT,
-                        "Sender": username,
-                        "Recipient": group_name,
-                    },
-                    body=message.encode(),
-                )
-                try:
-                    clientSocket.send(group_msg.encode())
-                except Exception as e:
-                    print("Error: Failed to send message to group chat.", e)
-                    break
+            group_msg = ProtocolUtils(
+                headers={
+                    "MessageType": protocol.MessageType.DATA,
+                    "Message": protocol.Messages.GROUP_TEXT,
+                    "Sender": username,
+                    "Recipient": group_name,
+                },
+                body=message.encode(),
+            )
+            try:
+                clientSocket.send(group_msg.encode())
+                with printLock:
+                    print("Group message sent to server.")
+            except Exception as e:
+                print("Error: Failed to send message to group chat.", e)
+                break
 
         except Exception as e:
             print("Error: Failed.", e)
@@ -714,7 +716,7 @@ while flag:
     elif option == "8":
         group_name = input("Enter group name to connect with: ")            #need to connect before able to chat
         if(GroupMembershipManager.groupExists(manager, group_name)):
-            if(GroupMembershipManager.getUserInGroup(manager, group_name, username)):
+            if (GroupMembershipManager.getUserInGroup(manager, group_name, username)):
                 # Request group member list from server
                 group_info_request = ProtocolUtils(
                     headers={

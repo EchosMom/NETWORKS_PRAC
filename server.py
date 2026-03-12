@@ -193,6 +193,7 @@ def send_group_message(groupName, sender, text):
     except Exception as e:
         return f"Error reading groupData.txt: {e}"
 
+    sent =0
     for sock, info in clientInfo.items():       #all connected clients
         username = info.get("username")
         if username in members and username != sender:
@@ -207,12 +208,15 @@ def send_group_message(groupName, sender, text):
             )
             try:
                 sock.send(msg.encode())
+                sent+1
                 print(f"DEBUG: msg sent to {username}")
             except Exception as e:
                 print(f"DEBUG: msg failed to send to {username}: {e}")
                 disconnect_client(sock)
+    print(f"Message sent to {sent} members")
             
 """sends list of online group membbers to sender"""
+
 def getMembers(groupName, sender):
     members = []
     try:
@@ -234,11 +238,14 @@ def getMembers(groupName, sender):
         if info.get("username") == sender:
             sender_socket = sock
             break
+
+    if sender_socket is None:
+        return (f"Error: {sender} is not online.")
     
     str_members = ",".join(members)
 
     msg = ProtocolUtils(
-         headers={
+        headers={
             "MessageType": protocol.MessageType.CONTROL,
             "Message": protocol.Messages.CHAT_INFO,
             "Sender": "server",
