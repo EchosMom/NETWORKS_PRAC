@@ -87,6 +87,11 @@ def handle_client(clientSocket, manager):
                     sender = mess.sender                      
                     send_group_message(groupName, sender, text) 
 
+                if msg_content == protocol.Messages.CHAT_INFO:
+                    groupName = mess.headers.get("Recipient")   
+                    sender = mess.sender                      
+                    getMembers(groupName, sender)
+
             except Exception as e:
                 print("Error handling client message: ", e)
     except Exception as e:
@@ -159,7 +164,7 @@ def broadcast(msg, senderSocket):
                 disconnect_client(sock) #remove failed conns
 """
 
-"""find group members and send msg to each member socket"""
+"""find group members and send server the member usernames"""
 def send_group_message(groupName, sender, text):
     members = []
     try:
@@ -192,6 +197,44 @@ def send_group_message(groupName, sender, text):
             except:
                 disconnect_client(sock)
                 return f"Oops! cannot send message to {username}"
+            
+    return f"Message sent to {sent} members"
+
+def getMembers(groupName, sender):
+    members = []
+    try:
+        with open("serverData/groupData.txt", "r") as f:
+            for line in f:
+                parts = line.strip().split(":")
+                if parts[1] == groupName:
+                    mems = parts[2].strip().split(",")
+                    for m in mems:
+                        members.append(m)   # usernames in group
+                    if sender not in members:
+                        members.append(sender)
+    except:
+        return "Hmm... something went wrong"
+    
+    sent =0
+    for sock, info in clientInfo.items():
+        username = info.get("username")
+        str_members = ",".join(members)
+        if username in members:
+            msg = ProtocolUtils(
+                headers={
+                    "MessageType": protocol.MessageType.CONTROL,
+                    "Message": protocol.Messages.CHAT_INFO,
+                    "Sender": "server",
+                    "Recipient": groupName
+                },
+                body=str_members.encode()
+            )
+            try:
+                sock.send(msg.encode())
+                sent+=1
+            except:
+                disconnect_client(sock)
+                return f"Error: Cannot send group member list to {username}"
             
     return f"Message sent to {sent} members"
 

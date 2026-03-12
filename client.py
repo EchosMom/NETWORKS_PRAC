@@ -25,6 +25,8 @@ peerConnections = {} #track peer connections - username -> socket
 listenSocket = None
 p2p_Listening = False #flag to indicate if client is currently listening for p2p connection
 chatRequests = {} #track incoming chat requests - list of usernames who sent requests
+groupMembers = {} #track group memberships
+groupChats = []
 
 def listen_for_p2p():
     global p2p_Listening, listenSocket
@@ -121,11 +123,14 @@ def receive_reply(clientSocket, username):
                     print(f"\n[P2P Request] {requester} wants to chat")
                  chatRequests[requester] = rp
 
-            elif rp.message == protocol.Messages.GROUP_TEXT:
-                sender = rp.sender
-                text = rp.body.decode()
-                with printLock:
-                    print(f"\n[Group message from {sender}]: {text}")
+            elif type == protocol.MessageType.CONTROL and rp.message == protocol.Messages.CHAT_INFO:
+                
+                decoded_body = rp.body.decode().strip()
+                members = decoded_body.split(",")                  
+                #members = rp.body.decode().strip().split(",") #get group members from server reply and save to groupMembers
+                group_name = rp.headers.get("Recipient")
+                groupMembers[group_name] = members
+                groupChats.append(group_name)
 
             elif type == protocol.MessageType.P2P_OFFER:
                 with printLock:
@@ -166,10 +171,12 @@ def receive_reply(clientSocket, username):
                        print(f"Connected to {p_username}! Please select option 3 to chat.")
 
                 except Exception as e:
-                     print(f"Failed to connect to peer: {e}")
+                     with printLock:
+                        print(f"Failed to connect to peer: {e}")
                     
         except Exception as e:
-              print(f"Failed to connect to peer: {e}")
+            with printLock:
+                print(f"Failed to connect to peer: {e}")
             
 def accept_request(clientSocket, username, requester, peerPort):
         #global p2p_Listening        #make global so its not treated as local var
@@ -213,8 +220,23 @@ def send_message(username, p_username, mess):
             
             peerConnections[p_username].send(msg.encode())
         except Exception as e:
-            print("Error: Message not sent.", e)
+            print("Error: Peer message not sent.", e)
 
+def send_group_message(username, group_member, mess):
+    if group_member in groupMembers:
+        try:
+            msg = ProtocolUtils(
+                headers={
+                    "MessageType": protocol.MessageType.CHAT,
+                    "Message": protocol.Messages.TEXT,
+                    "Sender": username,
+                    "Recipient": group_member},
+                body= mess.encode())
+            
+            groupMembers[group_member].send(msg.encode())
+        except Exception as e:
+            print("Error: Group message not sent.", e)
+            
 '''def receive_media():
     global mediaSocket
     while True:
@@ -313,7 +335,7 @@ def handle_peer_connection(peerSocket):
 
                 peerConnections[peer_username] = peerSocket
                 
-                print(f"[P2P] Connected to {peer_username}")
+                print(f"[P2P] Connected to {peer_username}! Please select option 3 to chat.")
 
                 threading.Thread(target=handle_p2p_chat, 
                                 args=(peerSocket, peer_username, username), daemon=True).start()
@@ -344,10 +366,10 @@ def chat_with_peer(username, p_username): #dedicated mode for chatting
             
             # Only send non-empty messages
             if message.strip():  # This checks if message is not just whitespace
-                send_message(username, p_username, message)
+                send_group_message(username, p_username, message)
 
         except Exception as e:
-            print("Error: failed to send Message to peer.", e)
+            print("Error: Failed to send message to peer.", e)
             break
     
     print(f"\n[P2P] Chat with {p_username} ended.")
@@ -389,6 +411,38 @@ def handle_p2p_chat(peerSocket, p_username, username):
         peerSocket.close()
     except Exception as e:
         pass
+        
+def chat_with_group(group_name):
+    # handles sending
+    with printLock:
+        print(f"\n[P2P] Chatting with {group_name}. Type 'quit' to end.")
+    while True:
+        try:
+            message = input(f"[{username}]: ")
+            if message.lower() == "quit":
+                with printLock:
+                    print(f"\n[P2P] Ending chat with {group_name}.")
+                break
+            group_msg = ProtocolUtils(
+                    headers={
+                        "MessageType": protocol.MessageType.DATA,
+                        "Message": protocol.Messages.GROUP_TEXT,
+                        "Sender": username,
+                        "Recipient": group_name
+                    },
+                    body=message.encode()
+                )
+            try:
+                clientSocket.send(group_msg.encode())
+            # Only send non-empty messages
+        
+            except Exception as e:
+                print("Error: Failed to send message to group chat.", e)
+            break
+        except Exception as e:
+            print("Error: Failed.", e)
+            break
+    print(f"\n[P2P] Chat with {group_name} ended.")
 
 
 if __name__ == '__main__':
@@ -426,8 +480,9 @@ while flag:
     print("5. Create group")
     print("6. Join group")
     print("7. Leave group")
-    print("8. Send group message")
-    print("9. Logout")
+    print("8. Send group chat request to server")
+    print("9. Send message to group chat")
+    print("10. Logout")
     
 
     option = input("Enter option number: ")
@@ -513,23 +568,43 @@ while flag:
         print(GroupMembershipManager.leaveGroup(manager, group_name, username)) #send leave group request to server
 
     elif option == "8":
-        group_name = input("Enter group name to send message to: ")
+        group_name = input("Enter group name to chat with: ")
         if(GroupMembershipManager.groupExists(manager, group_name)):
-            message = input("Enter message: ")
             group_msg = ProtocolUtils(
             headers={
-                "MessageType": protocol.MessageType.DATA,
-                "Message": protocol.Messages.GROUP_TEXT,
+                "MessageType": protocol.MessageType.CONTROL,
+                "Message": protocol.Messages.CHAT_INFO,
                 "Sender": username,
                 "Recipient": group_name
             },
-            body=message.encode()
+            body=b""
             )
-
             clientSocket.send(group_msg.encode())
-            print("Group message sent to server.")            #send group message request to server
-
+            print("Group chat request sent to server.")  # send request to server to get group members                
+        else:
+            with printLock:
+                print("Group does not exist.")
+    
     elif option == "9":
+        if groupChats:
+            print("Current group chats:")
+            for gc in groupChats:
+                with printLock:
+                    print(f"- {gc}")
+            group_name = input("Enter groupchat to chat with: ")
+            if group_name in groupChats:
+                with printLock:
+                    print(f"\n{group_name} members: ")
+                for m in groupMembers[group_name]:
+                    with printLock:
+                        print(f"- {m}")
+                chat_with_group(group_name)
+            else:
+                print("Wrong group name.")
+        else:
+            print("No current group chats.")
+
+    elif option == "10":
     #send logout request to server and close socket
         logout_msg = ProtocolUtils(
         headers={
@@ -556,7 +631,13 @@ exit()
 
     
 
-    
+"""elif rp.message == protocol.Messages.GROUP_TEXT:
+                sender = rp.sender
+                text = rp.body.decode().strip()
+                group_name = rp.recipient
+                with printLock:
+                    print(f"\n{group_name} group message:")
+                    print(f"\n[{sender}]: {text}")"""
 
         
   
