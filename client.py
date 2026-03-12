@@ -45,7 +45,15 @@ def registerOrLogin(clientSocket):
     while True:
         print("-----------------------------")
         print("Welcome to Chat-Chat")
-        choice = input("Press 'l' to login or 'r' if you are a new user: ")
+        print("(L)ogin existing user")
+        print("(R)egister new user")
+        print("(Q)uit")
+        choice = input("Please Select your option: (l/r/q) ").strip()
+
+        if choice.lower() == 'q':
+            print("Exiting...")
+            clientSocket.close()
+            return None
 
         username = input("Enter username: ").strip()
         password = input("Enter password: ").strip()
@@ -58,49 +66,60 @@ def registerOrLogin(clientSocket):
             continue
 
         if choice.lower() == "l":
-            login_msg = ProtocolUtils(
-                 headers={
-                     "MessageType": protocol.MessageType.COMMAND,
-                     "Message": protocol.Messages.LOGIN,
-                     "Sender": username,
-                     "Recipient": serverAddress,
-                     "Username": username,
-                     "Password": password,
-                     "PeerPort": str(peerPort)
-                 },
-                 body=b""
-                )
+            attempt_count = 0
+            successful = False
+            while attempt_count != 3 and not successful:
+                if attempt_count>0:
+                 # Only ask for credentials again if this is a retry
+                    print(f"\nAttempt {attempt_count + 1} of 3")
+                    username = input("Enter username: ").strip()
+                    password = input("Enter password: ").strip()   
+                login_msg = ProtocolUtils(
+                    headers={
+                        "MessageType": protocol.MessageType.COMMAND,
+                        "Message": protocol.Messages.LOGIN,
+                        "Sender": username,
+                        "Recipient": serverAddress,
+                        "Username": username,
+                        "Password": password,
+                        "PeerPort": str(peerPort)
+                    },
+                    body=b""
+                    )
             
-            clientSocket.send(login_msg.encode())
+                clientSocket.send(login_msg.encode())
             
             # Wait for server reply
-            replyBytes = clientSocket.recv(4096)
-            if not replyBytes:
-                print("Server disconnected.")
-                clientSocket.close()
-                return None
-            
-            reply = ProtocolUtils.decode(replyBytes)
-            if reply.message == protocol.Messages.ACK:
-                print(f"Login successful!")
-                return (username, clientSocket)
-            elif reply.message == protocol.Messages.ERROR:
-                count = 3
-                print(f"Login failed: {reply.body.decode()}")
-                # Ask if they want to try again
-                retry = input("Try again? (y/n): ("+ count+ "tries remaining")
-                if retry != 'y':
-                    count = count-1
+                replyBytes = clientSocket.recv(4096)
+                if not replyBytes:
+                    print("Server disconnected.")
                     clientSocket.close()
-                    return None 
+                    return None
+            
+                reply = ProtocolUtils.decode(replyBytes)
+                if reply.message == protocol.Messages.ACK:
+                    print(f"Login successful!")
+                    return (username, clientSocket)
+                elif reply.message == protocol.Messages.ERROR:
+                    attempt_count+=1
+                    print(f"Login failed: {reply.body.decode()}")
+                
+                    if attempt_count <3:
+                        retry = input(f"Try again? {3-attempt_count} tries remaining (y/n): ")
+                        if retry != 'y':
+                       
+                            clientSocket.close()
+                        return None 
         elif choice.lower() == "r":
              # validate strength using the connection manager helper
              is_valid, errorMsg = ClientConnectionManager.is_password_strong(password)
 
              if not is_valid:
-                 print(errorMsg)
-             elif is_valid:
-              register_msg = ProtocolUtils(
+                 print(f"Password too weak , {errorMsg}")
+                 continue
+             
+             
+             register_msg = ProtocolUtils(
                  headers={
                      "MessageType": protocol.MessageType.COMMAND,
                      "Message": protocol.Messages.REGISTER,  # You'll need to add this to protocol.Messages
@@ -124,7 +143,7 @@ def registerOrLogin(clientSocket):
             
              reply = ProtocolUtils.decode(replyBytes)
              if reply.message == protocol.Messages.ACK:
-                print(f"Registration successful! You can now logging in....")
+                print(f"Registration successful! Now logging in....")
                 # After successful registration, automatically proceed to login
                
                    
@@ -162,6 +181,8 @@ def registerOrLogin(clientSocket):
                 if retry != 'y':
                     clientSocket.close()
                     return None
+        else:
+            print("Invalid choice. Please enter 'l', 'r', or 'q'.")
     
         
 
@@ -213,19 +234,9 @@ def receive_reply(clientSocket, username):
             rp = ProtocolUtils.decode(rep)
             type= rp.message_type
 
-            if rp.message == protocol.Messages.GROUP_TEXT:
-                sender = rp.sender
-                text = rp.body.decode()
-                
-                with printLock:
-                    sys.stdout.write("\r" + "" * 80 + "\r")
-                    # group message
-                    sys.stdout.write(f"[{sender}]: {text}\n")
-                    # redisplay prompt
-                    sys.stdout.write(f"[{username}]: ")
-                    sys.stdout.flush()           
+            
 
-            elif type == protocol.MessageType.P2P_REQ:
+            if type == protocol.MessageType.P2P_REQ:
                  requester = rp.sender
                  with printLock:
                     print(f"\n[P2P Request] {requester} wants to chat")
@@ -243,6 +254,18 @@ def receive_reply(clientSocket, username):
                 with printLock:
                     print(f"\nYou are now connected to: {group_name}")
                     print(f"Members: {', '.join(members)}")
+
+            if rp.message == protocol.Messages.GROUP_TEXT:
+                sender = rp.sender
+                text = rp.body.decode()
+                
+                with printLock:
+                    sys.stdout.write("\r" + "" * 80 + "\r")
+                    # group message
+                    sys.stdout.write(f"[{sender}]: {text}\n")
+                    # redisplay prompt
+                    sys.stdout.write(f"[{username}]: ")
+                    sys.stdout.flush()           
 
             elif type == protocol.MessageType.P2P_OFFER:
                 with printLock:
@@ -340,7 +363,7 @@ def send_message(username, p_username, mess):
 
 
 #UDP
-'''def receive_media():
+def receive_media():
     global mediaSocket
     while True:
         try:
@@ -419,7 +442,7 @@ def send_media(p_username, filePath):
     except FileNotFoundError:
         print("File not Found.")
     except Exception as e:
-        print(f"Errot sending media: {e}")'''
+        print(f"Errot sending media: {e}")
 
 
 def handle_peer_connection(peerSocket):
@@ -663,19 +686,19 @@ while flag:
         else:
             print("No connected peers")
 
-    #elif option == "4":
-        #if peerConnections:
+    elif option == "4":
+        if peerConnections:
             print("Connected peers:")
-            #for peer in peerConnections.keys():
-                #  print(f"- {peer}")
-            #target = input("Enter username to send media: ")
-            # if target in peerConnections:
-                #     filepath = input("Enter path to media file: ")
-            #      send_media(target, filepath)
-            #  else:
-                #   print("Not connected to that peer.")
-        # else:
-            #print("No connected peers.")
+            for peer in peerConnections.keys():
+                 print(f"- {peer}")
+            target = input("Enter username to send media: ")
+            if target in peerConnections:
+                 filepath = input("Enter path to media file: ")
+                 send_media(target, filepath)
+            else:
+              print("Not connected to that peer.")
+        else:
+            print("No connected peers.")
 
     elif option == "5":
         group_name = input("Enter group name: ")
