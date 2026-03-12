@@ -157,7 +157,7 @@ def receive_reply(clientSocket, username):
                    # Start chat thread
                    threading.Thread(
                        target=handle_p2p_chat, 
-                       args=(peerSocket, p_username), 
+                       args=(peerSocket, p_username, username), 
                        daemon = True
                     ).start()
                    
@@ -315,54 +315,36 @@ def handle_peer_connection(peerSocket):
                 print(f"[P2P] Connected to {peer_username}")
 
                 threading.Thread(target=handle_p2p_chat, 
-                                args=(peerSocket, peer_username), daemon=True).start()
+                                args=(peerSocket, peer_username, username), daemon=True).start()
                 return
         except:
             print("Error: failed to receive Message from peer.")
 
+"""waits for user input"""
 def chat_with_peer(username, p_username): #dedicated mode for chatting
 
     if p_username not in peerConnections:
         print("Not connected to that peer.")
         return
     
-    # does not check if other peer (target peer is connected)
+    chatMode = True
 
-    peerSocket = peerConnections[p_username]
     with printLock:
         print(f"\n[P2P] Chatting with {p_username}. Type 'quit' to end.")
-        chatMode: True
    
-
-    while True: 
-        try:
-            mess= input("[Me]: ")
-            if mess.lower() == "quit":
-                chatMode = False
-                with printLock:
-                    print(f"\n[P2P Ending chat with {p_username}]")
-                break
-            if mess.strip():
-                send_message(username, p_username, mess)
-        except Exception as e:
-            print("Error sending message: ",e)
-            break
-
-
-    # Main thread handles sending
+    # handles sending
     while chatMode:
         try:
-            message = input("[Me]: ")
+            message = input(f"[{username}]: ")
             if message.lower() == "quit":
                 with printLock:
                     print(f"\n[P2P] Ending chat with {p_username}.")
-                chatMode = False
                 break
             
             # Only send non-empty messages
             if message.strip():  # This checks if message is not just whitespace
                 send_message(username, p_username, message)
-            
+
         except Exception as e:
             print("Error: failed to send Message to peer.", e)
             break
@@ -372,14 +354,10 @@ def chat_with_peer(username, p_username): #dedicated mode for chatting
     # Clean up
     if p_username in peerConnections:
         del peerConnections[p_username]
-    try:
-        peerSocket.close()
-    except:
-        pass    
 
-
-def handle_p2p_chat(peerSocket, p_username):
-    while True:
+"""constantly waits for network msgs"""
+def handle_p2p_chat(peerSocket, p_username, username):
+    while True:     #receiving loop
         try:
             mess = peerSocket.recv(1024)
 
@@ -389,12 +367,15 @@ def handle_p2p_chat(peerSocket, p_username):
             else:
                 msg = ProtocolUtils.decode(mess)
                 if msg.message == protocol.Messages.TEXT: #sending actual texts p2p
+                    if msg.headers.get("Sender") == username:
+                        continue
                     text =  msg.body.decode().strip()
                     with printLock:
-                        print("\r" + " "*50 + "\r", end="", flush=True)
-                        print(f"\n[{p_username}]: {text}", flush=True)
-                        print("[Me]: ", end="", flush=True) 
-                      
+                        sys.stdout.write("\r" + "" * 80 + "\r")       #clear current input line
+                        sys.stdout.write(f"[{p_username}]: {text}")
+                        #redraw prompt
+                        sys.stdout.write(f"\n[{username}]: ")       
+
         except Exception as e:
             print("Error: failed to receive Message from peer.", e)
             break
