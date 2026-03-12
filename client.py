@@ -39,6 +39,128 @@ def listen_for_p2p():
     listenSocket.listen(5)
     p2p_Listening = True
 
+def registerOrLogin(clientSocket):
+    while True:
+        print("Welcome to Chat-Chat")
+        choice = input("Press 'l' to login or 'r' if you are a new user")
+
+        username = input("Enter username: ").strip()
+        password = input("Enter password: ").strip()
+
+        if not username or not password:
+            print("Username and password cannot be empty.")
+            continue
+        if len(username) > 30:
+            print("Username too long, max 30 characters.")
+            continue
+
+        if choice.lower() == "l":
+            login_msg = ProtocolUtils(
+                 headers={
+                     "MessageType": protocol.MessageType.COMMAND,
+                     "Message": protocol.Messages.LOGIN,
+                     "Sender": username,
+                     "Recipient": serverAddress,
+                     "Username": username,
+                     "Password": password,
+                     "PeerPort": str(peerPort)
+                 },
+                 body=b""
+                )
+            
+            clientSocket.send(login_msg.encode())
+            
+            # Wait for server reply
+            replyBytes = clientSocket.recv(4096)
+            if not replyBytes:
+                print("Server disconnected.")
+                clientSocket.close()
+                return None
+            
+            reply = ProtocolUtils.decode(replyBytes)
+            if reply.message == protocol.Messages.ACK:
+                print(f"Login successful!")
+                return (username, clientSocket)
+            elif reply.message == protocol.Messages.ERROR:
+                count = 3
+                print(f"Login failed: {reply.body.decode()}")
+                # Ask if they want to try again
+                retry = input("Try again? (y/n): ("+ count+ "tries remaining")
+                if retry != 'y':
+                    count = count-1
+                    clientSocket.close()
+                    return None 
+        elif choice.lower() == "r":
+             # validate strength using the connection manager helper
+             is_valid, errorMsg = ClientConnectionManager.is_password_strong(password)
+             if not is_valid:
+                 print(errorMsg)
+                 continue
+             register_msg = ProtocolUtils(
+                headers={
+                    "MessageType": protocol.MessageType.COMMAND,
+                    "Message": protocol.Messages.REGISTER,  # You'll need to add this to protocol.Messages
+                    "Sender": username,
+                    "Recipient": serverAddress,
+                    "Username": username,
+                    "Password": password,
+                    "PeerPort": str(peerPort)
+                },
+                body=b""
+            )
+            
+             clientSocket.send(register_msg.encode())
+            
+            # Wait for server reply
+             replyBytes = clientSocket.recv(4096)
+             if not replyBytes:
+                print("Server disconnected.")
+                clientSocket.close()
+                return None
+            
+             reply = ProtocolUtils.decode(replyBytes)
+             if reply.message == protocol.Messages.ACK:
+                print(f"Registration successful! You can now logging in....")
+                # After successful registration, automatically proceed to login
+               
+                   
+                login_msg = ProtocolUtils(
+                        headers={
+                            "MessageType": protocol.MessageType.COMMAND,
+                            "Message": protocol.Messages.LOGIN,
+                            "Sender": username,
+                            "Recipient": serverAddress,
+                            "Username": username,
+                            "Password": password,
+                            "PeerPort": str(peerPort)
+                        },
+                        body=b""
+                    )
+                clientSocket.send(login_msg.encode())
+                    
+                replyBytes = clientSocket.recv(4096)
+                if not replyBytes:
+                        print("Server disconnected.")
+                        clientSocket.close()
+                        return None
+                    
+                reply = ProtocolUtils.decode(replyBytes)
+                if reply.message == protocol.Messages.ACK:
+                        print(f"Login successful!")
+                        return (username, clientSocket)
+                else:
+                        print(f"Login failed after registration: {reply.body.decode()}")
+                        return None
+               
+             elif reply.message == protocol.Messages.ERROR:
+                print(f"Registration failed: {reply.body.decode()}")
+                retry = input("Try again? (y/n): ").strip().lower()
+                if retry != 'y':
+                    clientSocket.close()
+                    return None
+    
+        
+
 
 
 #client must login to server
@@ -56,41 +178,9 @@ def loginToServer():
     peerPort = random.randint(1600,1700)
     print(f"My P2P listening port is: {peerPort}")
 
-    usernameInput = input("Enter username: ")
-    passwordInput = input("Enter password: ")
+    return registerOrLogin(clientSocket)
 
-    login_msg = ProtocolUtils(
-        headers={
-            "MessageType": protocol.MessageType.COMMAND,
-            "Message": protocol.Messages.LOGIN,
-            "Sender": usernameInput,
-            "Recipient": serverAddress,
-            "Username": usernameInput,
-            "Password": passwordInput,
-            "PeerPort": str(peerPort)
-        },
-        body=b""
-    )
-
-    clientSocket.send(login_msg.encode())
     
-    # Wait for server reply, if login fails, close socket and return None
-    while True:
-        replyBytes = clientSocket.recv(4096)
-        if not replyBytes:
-            print("Server disconnected.")
-            clientSocket.close()
-            return None
-        
-        reply = ProtocolUtils.decode(replyBytes)
-        if reply.message == protocol.Messages.ACK:
-            print(f"Login successful")  # removed {reply.body.decode()} 
-            return (usernameInput, clientSocket)
-            
-        if reply.message == protocol.Messages.ERROR:
-            print(f"Login failed: {reply.body.decode()}")
-            clientSocket.close()
-            return None
 
 """Sends requests to the server."""
 def send_request(clientSocket, username, recipient):

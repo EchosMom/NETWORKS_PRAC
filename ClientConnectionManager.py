@@ -45,3 +45,17 @@ class ClientConnectionManager:
                 if line.split(":")[0] == username:
                     return True
         return False
+    
+    @staticmethod
+    def is_password_strong(password):
+        # basic strength requirements
+        if len(password) < 6:
+            return False, "Password must be at least 6 characters long."
+        if not any(c.isupper() for c in password):
+            return False, "Password must contain at least 1 uppercase letter."
+        if not any(c.islower() for c in password):
+            return False, "Password must contain at least 1 lowercase letter."
+        if not any(c.isdigit() for c in password):
+            return False, "Password must contain at least 1 number."
+        
+        return True  # password meets all criteria
