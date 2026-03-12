@@ -58,4 +58,4 @@ class ClientConnectionManager:
         if not any(c.isdigit() for c in password):
             return False, "Password must contain at least 1 number."
         
-        return True  # password meets all criteria
+        return True, "Password good!"  # password meets all criteria

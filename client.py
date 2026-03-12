@@ -3,13 +3,15 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from GroupMembershipManager import GroupMembershipManager
-import ClientConnectionManager
+from ClientConnectionManager import ClientConnectionManager
 
 import random   # going to use random peer port sockets.
 import socket
 import threading
 import protocol
 from ProtocolUtils import ProtocolUtils
+
+
 
 serverAddress = "127.0.0.1"  # Localhost
 serverPort = 1500
@@ -41,8 +43,9 @@ def listen_for_p2p():
 
 def registerOrLogin(clientSocket):
     while True:
+        print("-----------------------------")
         print("Welcome to Chat-Chat")
-        choice = input("Press 'l' to login or 'r' if you are a new user")
+        choice = input("Press 'l' to login or 'r' if you are a new user: ")
 
         username = input("Enter username: ").strip()
         password = input("Enter password: ").strip()
@@ -93,21 +96,22 @@ def registerOrLogin(clientSocket):
         elif choice.lower() == "r":
              # validate strength using the connection manager helper
              is_valid, errorMsg = ClientConnectionManager.is_password_strong(password)
+
              if not is_valid:
                  print(errorMsg)
-                 continue
-             register_msg = ProtocolUtils(
-                headers={
-                    "MessageType": protocol.MessageType.COMMAND,
-                    "Message": protocol.Messages.REGISTER,  # You'll need to add this to protocol.Messages
-                    "Sender": username,
-                    "Recipient": serverAddress,
-                    "Username": username,
-                    "Password": password,
-                    "PeerPort": str(peerPort)
-                },
-                body=b""
-            )
+             elif is_valid:
+              register_msg = ProtocolUtils(
+                 headers={
+                     "MessageType": protocol.MessageType.COMMAND,
+                     "Message": protocol.Messages.REGISTER,  # You'll need to add this to protocol.Messages
+                     "Sender": username,
+                     "Recipient": serverAddress,
+                     "Username": username,
+                     "Password": password,
+                     "PeerPort": str(peerPort)
+                 },
+                 body=b""
+             )
             
              clientSocket.send(register_msg.encode())
             
