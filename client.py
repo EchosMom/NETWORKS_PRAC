@@ -5,29 +5,27 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from GroupMembershipManager import GroupMembershipManager
 from ClientConnectionManager import ClientConnectionManager
 
-import random   # going to use random peer port sockets.
+import random   # going to use random peer port sockets
 import socket
 import threading
 import protocol
 from ProtocolUtils import ProtocolUtils
 
-
-
 serverAddress = "127.0.0.1"  # Localhost
 serverPort = 1500
 peerPort = 1600
-mediaPort = 1700 #this is for sending media files, UDP_port
-chunkSize = 6000 #bytes per UDP packet
+mediaPort = 1700  # for sending media files, UDP_port
+chunkSize = 6000  # bytes per UDP packet
 mediaSocket = None
 incoming_media = {}
 incoming_media_lock = threading.Lock()
 printLock = threading.Lock()
-peerConnections = {} #track peer connections - username -> socket
+peerConnections = {}  # dictionary of client and sockets
 listenSocket = None
-p2p_Listening = False #flag to indicate if client is currently listening for p2p connection
-chatRequests = {} #track incoming chat requests - list of usernames who sent requests
-groupMembers = {} #track group memberships
-groupChats = []
+p2p_Listening = False  # flag to indicate if client is currently listening for p2p connection
+chatRequests = {}  # dictionary of usernames who sent requests
+groupMembers = {}  # dictionary of group memberships
+groupChats = []  # list of group chats the client is connected to
 
 def listen_for_p2p():
     global p2p_Listening, listenSocket
@@ -68,8 +66,7 @@ def registerOrLogin(clientSocket):
             attempt_count = 0
             successful = False
             while attempt_count != 3 and not successful:
-                if attempt_count>0:
-                 # Only ask for credentials again if this is a retry
+                if attempt_count>0:  # Only ask for credentials again if this is a retry
                     print(f"\nAttempt {attempt_count + 1} of 3")
                     username = input("Enter username: ").strip()
                     password = input("Enter password: ").strip()   
@@ -85,10 +82,9 @@ def registerOrLogin(clientSocket):
                     },
                     body=b""
                     )
-            
                 clientSocket.send(login_msg.encode())
             
-            # Wait for server reply
+                # Wait for server reply
                 replyBytes = clientSocket.recv(4096)
                 if not replyBytes:
                     print("Server disconnected.")
@@ -121,7 +117,7 @@ def registerOrLogin(clientSocket):
              register_msg = ProtocolUtils(
                  headers={
                      "MessageType": protocol.MessageType.COMMAND,
-                     "Message": protocol.Messages.REGISTER,  # You'll need to add this to protocol.Messages
+                     "Message": protocol.Messages.REGISTER,  # Add this to protocol.Messages
                      "Sender": username,
                      "Recipient": serverAddress,
                      "Username": username,
@@ -144,8 +140,6 @@ def registerOrLogin(clientSocket):
              if reply.message == protocol.Messages.ACK:
                 print(f"Registration successful! Now logging in....")
                 # After successful registration, automatically proceed to login
-               
-                   
                 login_msg = ProtocolUtils(
                         headers={
                             "MessageType": protocol.MessageType.COMMAND,
@@ -182,13 +176,8 @@ def registerOrLogin(clientSocket):
                     return None
         else:
             print("Invalid choice. Please enter 'l', 'r', or 'q'.")
-    
-        
 
-
-
-#client must login to server
-def loginToServer():
+def loginToServer():  # client must login to server
     global peerPort
     clientSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
@@ -200,11 +189,7 @@ def loginToServer():
         return None
     
     peerPort = random.randint(1600,1700)
-    # print(f"My P2P listening port is: {peerPort}")
-
     return registerOrLogin(clientSocket)
-
-    
 
 """Sends requests to the server."""
 def send_request(clientSocket, username, recipient):
@@ -217,9 +202,8 @@ def send_request(clientSocket, username, recipient):
         },
         body=b""
     )
-    clientSocket.send(request.encode())     #msg ent in byte form to the clientSocket to the peer
+    clientSocket.send(request.encode())
     print(f"Chat request sent to {recipient}")
-
     
 """Receives replies from the server and prints them to the console."""
 def receive_reply(clientSocket, username):
@@ -232,8 +216,6 @@ def receive_reply(clientSocket, username):
             
             rp = ProtocolUtils.decode(rep)
             type= rp.message_type
-
-            
 
             if type == protocol.MessageType.P2P_REQ:
                  requester = rp.sender
@@ -260,10 +242,8 @@ def receive_reply(clientSocket, username):
                 
                 with printLock:
                     sys.stdout.write("\r" + " " * 80 + "\r")
-                    # group message
-                    sys.stdout.write(f"[{sender}]: {text}\n")
-                    # redisplay prompt
-                    sys.stdout.write(f"[{username}]: ")
+                    sys.stdout.write(f"[{sender}]: {text}\n")  # group message
+                    sys.stdout.write(f"[{username}]: ")  # redisplay prompt
                     sys.stdout.flush()           
 
             elif type == protocol.MessageType.P2P_OFFER:
@@ -314,9 +294,7 @@ def receive_reply(clientSocket, username):
                 print(f"Failed to connect to peer: {e}")
 
 
-            
 def accept_request(clientSocket, username, requester, peerPort):
-        #global p2p_Listening        #make global so its not treated as local var
         accept_msg = ProtocolUtils(
             headers={
                 "MessageType": protocol.MessageType.P2P_OFFER,
@@ -324,17 +302,16 @@ def accept_request(clientSocket, username, requester, peerPort):
                 "Sender": username,
                 "Recipient": requester
             },
-            body= f"127.0.0.1:{peerPort}".encode())
+            body= f"{serverAddress}:{peerPort}".encode())
         
         try:
             clientSocket.send(accept_msg.encode())
             print(f"Chat request from {requester} accepted. Please select option 3 to chat.")
-            #removed threading cos it happens after login
         except Exception as e:
             print("Error: failed to send accept message.", e)
 
 def receive_peer_connections():
-    while True:  # Loops to accept connection and Message from different peers
+    while True:  # Loops to accept connection from different peers
         try:
             new_socket, new_address = listenSocket.accept()  # Waits for incoming connections
             hpc_thread =threading.Thread(target=handle_peer_connection, args=(new_socket,), daemon=True)
@@ -360,11 +337,7 @@ def send_message(username, p_username, mess):
         except Exception as e:
             print("Error: Peer message not sent.", e)
 
-
-
-
-#UDP
-def receive_media():
+def receive_media():  # UDP
     global mediaSocket
     while True:
         try:
@@ -374,7 +347,7 @@ def receive_media():
             if mess.message == protocol.Messages.MEDIA:
                 sender = mess.sender
                 recipient = mess.recipient
-                file = mess.headers.get("FileName") #this can come from #kwargs in the protocol header
+                file = mess.headers.get("FileName")  # this can come from #kwargs in the protocol header
                 NumChunks = int(mess.headers.get("TotalChunks"))
                 chunkIndex = int(mess.headers.get("ChunkIndex"))
                 chunkData = mess.body
@@ -390,10 +363,10 @@ def receive_media():
                     entry = incoming_media[keys]
                     entry['chunks'][chunkIndex] = chunkData
 
-                    #check if all chunks received, cause UDP is unreliable
+                    # checks if all chunks received, cause UDP is unreliable
                     if all (chunk is not None for chunk in entry['chunks']):
-                        completeData = b''.join(entry['chunks']) #put chunks together and save
-                        FileBase, FileExt = os.path.splitext(file) #new file to prevent overriidng,[FileBase.FileExt]
+                        completeData = b''.join(entry['chunks'])  # put chunks together and save
+                        FileBase, FileExt = os.path.splitext(file)  # new file to prevent overriidng,[FileBase.FileExt]
                         save_name = f"received_{sender}_{FileBase}{FileExt}"
 
                         with open(save_name, 'wb') as f:
@@ -409,12 +382,12 @@ def send_media(username, p_username, filePath):
         print("Not connected to that peer.")
         return
     
-    try: #getting IP from TCP socket
+    try: # getting IP from TCP socket
         peerSocket = peerConnections[p_username]
         peerIP = peerSocket.getpeername()[0]
         peerAddress = (peerIP, mediaPort)
 
-        #readign file and spliting to chunks
+        # reading file and splitting to chunks
         with open(filePath, 'rb') as f:
             fileData = f.read()
         NumChunks = (len(fileData)+chunkSize-1)//chunkSize
@@ -439,26 +412,25 @@ def send_media(username, p_username, filePath):
             mess = ProtocolUtils(headers=headers, body=chunk)
             mediaSocket.sendto(mess.encode(), peerAddress)
         print(f"File '{fileName}' sent successfully.")
+        
     except FileNotFoundError:
         print("File not Found.")
     except Exception as e:
-        print(f"Errot sending media: {e}")
+        print(f"Error sending media: {e}")
 
 
 def handle_peer_connection(peerSocket):
-    while True:  # Loops to receive Messages from the same peer
+    while True:  # loops to receive Messages from the same peer
         try:
             msg_bytes = peerSocket.recv(protocol.Protocol.MAX_MESSAGE_BODY_SIZE)
             if not msg_bytes:
                 print("Peer disconnected.")
                 return
-                # break
 
             msg = ProtocolUtils.decode(msg_bytes)
 
             if msg.message == protocol.Messages.ACK:
                 peer_username = msg.sender
-
                 peerConnections[peer_username] = peerSocket
                 
                 print(f"[P2P] Connected to {peer_username}! Please select option 3 to chat.")
@@ -471,7 +443,7 @@ def handle_peer_connection(peerSocket):
             print("Error: failed to receive Message from peer.")
 
 """waits for user input"""
-def chat_with_peer(username, p_username): #dedicated mode for chatting
+def chat_with_peer(username, p_username):  # dedicated mode for chatting
 
     if p_username not in peerConnections:
         print("Not connected to that peer.")
@@ -487,13 +459,10 @@ def chat_with_peer(username, p_username): #dedicated mode for chatting
         try:
             message = input(f"[{username}]: ")
             if message.lower() == "quit":
-                #with printLock:
-                    #print(f"\nEnding chat with {p_username}...")
                 break
             
-            # Only send non-empty messages
-            if message.strip():  # This checks if message is not just whitespace
-                send_message(username, p_username, message)         #this is for individual chats... group messages should be broadcasted
+            if message.strip():  # this checks if message is not just whitespace
+                send_message(username, p_username, message)  # this is for individual chats
 
         except Exception as e:
             print("Error: Failed to send message to peer.", e)
@@ -501,13 +470,13 @@ def chat_with_peer(username, p_username): #dedicated mode for chatting
     
     print(f"\nChat with {p_username} ended")
 
-    # Clean up
+    # clean up
     if p_username in peerConnections:
         del peerConnections[p_username]
 
 """constantly waits for network msgs"""
 def handle_p2p_chat(peerSocket, p_username, username):
-    while True:     #receiving loop
+    while True:  # receiving loop
         try:
             mess = peerSocket.recv(1024)
 
@@ -516,37 +485,33 @@ def handle_p2p_chat(peerSocket, p_username, username):
                 break
             else:
                 msg = ProtocolUtils.decode(mess)
-                if msg.message == protocol.Messages.TEXT: #sending actual texts p2p
+                if msg.message == protocol.Messages.TEXT:  # sending actual p2p texts
                     if msg.headers.get("Sender") == username:
                         continue
                     text =  msg.body.decode().strip()
                     with printLock:
-                        sys.stdout.write("\r" + "" * 80 + "\r")       #clear current input line
+                        sys.stdout.write("\r" + "" * 80 + "\r")  # clears current input line
                         sys.stdout.write(f"[{p_username}]: {text}")
-                        #redraw prompt
-                        sys.stdout.write(f"\n[{username}]: ")       
+                        sys.stdout.write(f"\n[{username}]: ")  # redraw prompt       
 
         except Exception as e:
             print("Error: failed to receive Message from peer.", e)
             break
 
-    #disconnecting from peer, remove from peerConnections
+    # disconnecting from peer
     print(f"\n[P2P] Disconnected from {p_username}")
     if p_username in peerConnections:
-        del peerConnections[p_username]
+        del peerConnections[p_username] # remove from peerConnections
     try:
         peerSocket.close()
     except Exception as e:
         pass
         
-def chat_with_group(group_name):
-    # handles sending
+def chat_with_group(group_name):  # handles sending
     with printLock:
         print(f"\nChatting with {group_name} (type 'quit' to end)\n")
 
-    #threading.current_thread().in_group_chat = True     # flag for receive reply method
     chatMode = True
-
     while chatMode:
         try:
             message = input(f"[{username}]: ")
@@ -556,14 +521,6 @@ def chat_with_group(group_name):
                     print(f"\n[P2P] Ending chat with {group_name}.")
                 chatMode = False
                 break
-
-            # server handles msging multiple ppl
-            #if message.strip():
-                #with printLock:
-                    # sys.stdout.write(f"[{username}]: {message}\n")
-                    # sys.stdout.write(f"[{username}]: ")
-                    # sys.stdout.flush()
-                    #pass
 
             group_msg = ProtocolUtils(
                 headers={
@@ -576,18 +533,16 @@ def chat_with_group(group_name):
             )
             try:
                 clientSocket.send(group_msg.encode())
+
             except Exception as e:
                 print("Error: Failed to send message to group chat.", e)
                 break
-
         except Exception as e:
             print("Error: Failed.", e)
             break
 
-    threading.current_thread().in_group_chat = False        # update flag
+    threading.current_thread().in_group_chat = False  # updates flag
     print(f"\n[P2P] Chat with {group_name} ended.")
-
-
 
 if __name__ == '__main__':
     while True:
@@ -609,16 +564,15 @@ if __name__ == '__main__':
             """threading.Thread(target=handle_group_chat, 
                  args=(clientSocket, username), 
                  daemon=True).start()"""
-            #mediaSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            #mediaSocket.bind(("0.0.0.0", mediaPort))
-            #threading.Thread(target=receive_media, daemon=True.start())
+            mediaSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            mediaSocket.bind(("0.0.0.0", mediaPort))
+            threading.Thread(target=receive_media, daemon=True.start())
             break
 
 flag = True
 
 manager = GroupMembershipManager()
 # the actual server interactions here
-# print("You are interacting with server.\n")
 while flag:
     with printLock:
         print("\nOptions:")
@@ -652,10 +606,9 @@ while flag:
             if selected in chatRequests:
                 choice = input(f"Accept chat request from {selected}? (y/n): ")
                 if choice.lower() == "y":
-                    accept_request(clientSocket, username, selected, peerPort) # removed chatRequests[selected]
+                    accept_request(clientSocket, username, selected, peerPort)
                     del chatRequests[selected]
                 else:
-                    
                     # Send rejection
                     reject_msg = ProtocolUtils(
                         headers={
@@ -669,20 +622,19 @@ while flag:
                     clientSocket.send(reject_msg.encode())
                     print(f"Chat request from {selected} rejected.")
                     del chatRequests[selected]
-
             else:
                 print("Invalid selection.")
         else:
             print("No chat requests at the moment")
 
-    elif option == "3": #sending actual messages
+    elif option == "3":
         if peerConnections:
             print("Connected peers:")
             for peer in peerConnections.keys():
                 print(f"- {peer}")
             target = input("Enter username to chat with: ")
             if target in peerConnections:
-                #enter p2p chat
+                # enter p2p chat
                 chat_with_peer(username, target)
             else:
                 print("Not connected to that peer.")
@@ -705,22 +657,22 @@ while flag:
 
     elif option == "5":
         group_name = input("Enter group name: ")
-        print(GroupMembershipManager.createGroup(manager, group_name, username)) #send create group request to server
+        print(GroupMembershipManager.createGroup(manager, group_name, username))  # send create group request to server
 
     elif option == "6":
         group_name = input("Enter group name to join: ")
         if(GroupMembershipManager.groupExists(manager, group_name)):
-            print(GroupMembershipManager.joinGroup(manager, group_name, username)) #send join group request to server
+            print(GroupMembershipManager.joinGroup(manager, group_name, username))  # send join group request to server
 
     elif option == "7":
         group_name = input("Enter group name to leave: ")
-        print(GroupMembershipManager.leaveGroup(manager, group_name, username)) #send leave group request to server
+        print(GroupMembershipManager.leaveGroup(manager, group_name, username))  # send leave group request to server
 
     elif option == "8":
-        group_name = input("Enter group name to connect with: ")            #need to connect before able to chat
+        group_name = input("Enter group name to connect with: ")  # need to connect before able to chat
         if(GroupMembershipManager.groupExists(manager, group_name)):
             if (GroupMembershipManager.getUserInGroup(manager, group_name, username)):
-                # Request group member list from server
+                # request group member list from server
                 group_info_request = ProtocolUtils(
                     headers={
                         "MessageType": protocol.MessageType.CONTROL,
@@ -742,7 +694,7 @@ while flag:
             with printLock:
                     print("Group does not exist.")
 
-    # will show connections NOT membirship for diff groups.
+    # will show connections for different groups (NOT membership)
     elif option == "9":
         if groupChats:
             print("Available group chats:")
@@ -752,18 +704,18 @@ while flag:
             group_name = input("Enter groupchat to chat with: ")
             if group_name in groupChats:
                 with printLock:
-                    print(f"\n{group_name} members: ")
+                    print(f"\n{group_name} members: ")  # prints group members
                 for m in groupMembers[group_name]:
                     with printLock:
                         print(f"- {m}")
-                chat_with_group(group_name)     #start chat
+                chat_with_group(group_name)  # start chat
             else:
                 print("Group name not found in your connected groups.")
         else:
             print("No group chats available. Use option 8 to connect to a group first.")
 
     elif option == "10":
-    #send logout request to server and close socket
+    # send logout request to server and close socket
         logout_msg = ProtocolUtils(
         headers={
             "MessageType": protocol.MessageType.COMMAND,
@@ -776,6 +728,7 @@ while flag:
         clientSocket.send(logout_msg.encode())
         rpc_thread.join()
         rr_thread.join()
+
         clientSocket.close()
         listenSocket.close()
         flag = False
@@ -783,12 +736,5 @@ while flag:
             print("Logged out.")
     else:
         print("Invalid choice")
-
-exit()
-
-    
-
-
         
-  
-    
+exit()    
