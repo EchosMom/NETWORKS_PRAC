@@ -421,7 +421,7 @@ def handle_p2p_chat(peerSocket, p_username, username):
                         sys.stdout.write("\r" + " " * 80 + "\r")       #clear current input line
                         sys.stdout.write(f"[{p_username}]: {text}")
                         #redraw prompt
-                        sys.stdout.write(f"\n[{username}]: ")       
+                        #sys.stdout.write(f"\n[{username}]: ")       
 
         except Exception as e:
             print("Error: failed to receive Message from peer.", e)
@@ -449,7 +449,7 @@ def chat_with_group(group_name):
             message = input(f"[{username}]: ")
             if message.lower() == "quit":
                 with printLock:
-                    sys.stdout.write("\r" + " " * 80 + "\r")
+                    sys.stdout.write("\r" + "" * 80 + "\r")
                     print(f"\n[P2P] Ending chat with {group_name}.")
                 chatMode = False
                 break
@@ -458,7 +458,7 @@ def chat_with_group(group_name):
             if message.strip():
                 with printLock:
                         sys.stdout.write(f"[{username}]: {message}\n")
-                        sys.stdout.write(f"[{username}]: ")
+                        #sys.stdout.write(f"[{username}]: ")
                         sys.stdout.flush()       
 
                 group_msg = ProtocolUtils(
