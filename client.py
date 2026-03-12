@@ -124,7 +124,7 @@ def receive_reply(clientSocket, username):
                 text = rp.body.decode()
                 
                 with printLock:
-                    sys.stdout.write("\r" + " " * 80 + "\r")
+                    sys.stdout.write("\r" + "" * 80 + "\r")
                     # group message
                     sys.stdout.write(f"[{sender}]: {text}\n")
                     # redisplay prompt
@@ -449,7 +449,7 @@ def chat_with_group(group_name):
             message = input(f"[{username}]: ")
             if message.lower() == "quit":
                 with printLock:
-                    sys.stdout.write("\r" + "" * 80 + "\r")
+                    sys.stdout.write("\r" + " " * 80 + "\r")
                     print(f"\n[P2P] Ending chat with {group_name}.")
                 chatMode = False
                 break
@@ -457,9 +457,9 @@ def chat_with_group(group_name):
             # server handles msging multiple ppl
             if message.strip():
                 with printLock:
-                        sys.stdout.write(f"[{username}]: {message}\n")
+                        #sys.stdout.write(f"[{username}]: {message}\n")
                         #sys.stdout.write(f"[{username}]: ")
-                        sys.stdout.flush()       
+                        #sys.stdout.flush()       
 
                 group_msg = ProtocolUtils(
                         headers={
