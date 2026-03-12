@@ -580,8 +580,8 @@ while flag:
                 },
                 body=b""
                 )
-                clientSocket.send(group_msg.encode())
                 print(f"Group chat request sent to server.")  # send msg to server     
+                print(clientSocket.send(group_msg.encode()))
 
             else:
                 with printLock:

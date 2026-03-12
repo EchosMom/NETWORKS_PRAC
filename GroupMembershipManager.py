@@ -128,11 +128,10 @@ class GroupMembershipManager:
   def getUserInGroup(self, groupName, username):
        with open(self.dataFile, "r") as f:
             lines = f.readlines()
-       with open(self.dataFile, "w") as f:
+       with open(self.dataFile, "a") as f:
             for line in lines:
                 parts = line.strip().split(":")
 
-                groupID = parts[0]
                 name = parts[1]
                 members = parts[2]
 
