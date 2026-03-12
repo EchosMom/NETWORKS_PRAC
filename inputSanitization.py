@@ -1,6 +1,6 @@
 #file taht will handle basic sercurity vulnerablity in terms of filtering user input
 
-MAX_LENG = 1000 #
+MAX_LENG = 1000 #prevents buffer overflows
 
 #basic input sanitization
 def sanitize_input(text):
@@ -28,7 +28,7 @@ def IP_port_is_safe(ip_port_string):
             return False
         
         #check port range
-        if not (1024<=port<=65535):
+        if not (1024<=portNum<=65535):
             return False
         return True
     except:

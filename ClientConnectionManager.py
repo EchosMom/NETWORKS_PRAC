@@ -16,8 +16,8 @@ class ClientConnectionManager:
     #user registration and login
     def register(self, username, password):
         with self.lock:
-            if self.usernameExists(username):
-                username = username + "_1"
+            while self.usernameExists(username):
+                print("Username already taken, please try again.")
 
             with open(self.usernameFile, "a") as f:
                 f.write(f"{username}:{password}\n")  #add counter at later stage

@@ -3,6 +3,7 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from GroupMembershipManager import GroupMembershipManager
+import ClientConnectionManager
 
 import random   # going to use random peer port sockets.
 import socket

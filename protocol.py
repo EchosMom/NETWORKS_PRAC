@@ -16,6 +16,7 @@ class MessageType:
 class Messages:
         #command messages
         LOGIN = "LOGIN"
+        REGISTER = "REGISTER"
         LOGOUT = "LOGOUT"
         JOIN = "JOIN"
         LEAVE = "LEAVE"

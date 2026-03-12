@@ -86,6 +86,21 @@ class ProtocolHandler:
                 body=b"").encode()
             
             clientSocket.send(reply)
+        elif message.message == protocol.Messages.REGISTER:
+             username = message.headers.get("Username")
+             password = message.headers.get("Password")
+             success, response = self.clientManager.register(username, password)
+             replyType = protocol.Messages.ACK if success else protocol.Messages.ERROR
+             reply = ProtocolUtils(
+                headers={
+                    "MessageType": protocol.MessageType.CONTROL, 
+                    "Message": protocol.Messages.ACK if success else protocol.Messages.ERROR,
+                    "Sender": "server"
+                }, 
+                body=b"").encode()
+            
+             clientSocket.send(reply)
+
         elif message.is_text():
             Recipient = message.recipient
             text = message.body.decode()  #assuming body is bytes
