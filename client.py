@@ -607,7 +607,7 @@ if __name__ == '__main__':
                  args=(clientSocket, username), 
                  daemon=True).start()"""
             mediaSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            mediaSocket.bind("0.0.0.0", mediaPort)
+            mediaSocket.bind(("0.0.0.0", mediaPort))
             threading.Thread(target=receive_media, daemon=True.start())
             break
 
