@@ -124,3 +124,23 @@ class GroupMembershipManager:
                 _, _, creator = line.strip().split(":")
                 if creator != None:
                     return creator
+
+  def getUserInGroup(self, groupName, username):
+       with open(self.dataFile, "r") as f:
+            lines = f.readlines()
+       with open(self.dataFile, "w") as f:
+            for line in lines:
+                parts = line.strip().split(":")
+
+                groupID = parts[0]
+                name = parts[1]
+                members = parts[2]
+
+                if name == groupName:
+                    membersList = members.split(",")
+                    if username not in membersList:
+                        f.write(line)
+                        return False, f"{username} is not in {groupName}"
+                    else:
+                        return True
+                    

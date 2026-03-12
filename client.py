@@ -366,7 +366,7 @@ def chat_with_peer(username, p_username): #dedicated mode for chatting
             
             # Only send non-empty messages
             if message.strip():  # This checks if message is not just whitespace
-                send_group_message(username, p_username, message)
+                send_message(username, p_username, message)         #this is for individual chats... group messages should be broadcasted
 
         except Exception as e:
             print("Error: Failed to send message to peer.", e)
@@ -569,21 +569,25 @@ while flag:
 
     elif option == "8":
         group_name = input("Enter group name to chat with: ")
-        if(GroupMembershipManager.groupExists(manager, group_name)):
-            group_msg = ProtocolUtils(
-            headers={
-                "MessageType": protocol.MessageType.CONTROL,
-                "Message": protocol.Messages.CHAT_INFO,
-                "Sender": username,
-                "Recipient": group_name
-            },
-            body=b""
-            )
-            clientSocket.send(group_msg.encode())
-            print("Group chat request sent to server.")  # send request to server to get group members                
+        if(GroupMembershipManager.getUserInGroup(manager, group_name, username)):
+            if(GroupMembershipManager.groupExists(manager, group_name)):
+                group_msg = ProtocolUtils(
+                headers={
+                    "MessageType": protocol.MessageType.CONTROL,
+                    "Message": protocol.Messages.CHAT_INFO,
+                    "Sender": username,
+                    "Recipient": group_name
+                },
+                body=b""
+                )
+                clientSocket.send(group_msg.encode())
+                print(f"Group chat request sent to server.")  # send msg to server     
+
+            else:
+                with printLock:
+                    print("Group does not exist.")
         else:
-            with printLock:
-                print("Group does not exist.")
+            print(f"[{username} not in {group_name}.] You cannot send messages to a group you are not a part of.")
     
     elif option == "9":
         if groupChats:
