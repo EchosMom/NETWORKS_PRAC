@@ -224,6 +224,10 @@ def receive_reply(clientSocket, username):
                  requester = rp.sender
                  print(f"\n[P2P Request] {requester} wants to chat")
                  chatRequests[requester] = rp
+            
+            elif rp.message == protocol.Messages.ERROR:
+                    with printLock:
+                        print(f"\nChat request failed: {rp.body.decode().strip()}")
 
             elif type == protocol.MessageType.CONTROL and rp.message == protocol.Messages.CHAT_INFO:
                 decoded_body = rp.body.decode().strip()
