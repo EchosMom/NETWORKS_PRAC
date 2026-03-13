@@ -5,7 +5,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from GroupMembershipManager import GroupMembershipManager
 from ClientConnectionManager import ClientConnectionManager
 
-import random   # going to use random peer port sockets
+import random   # going to use random peer port sockets and media port sockets
 import socket
 import threading
 import protocol
@@ -21,6 +21,7 @@ incoming_media = {}
 incoming_media_lock = threading.Lock()
 printLock = threading.Lock()
 peerConnections = {}  # dictionary of client and sockets
+peerMediaConnections = {}
 listenSocket = None
 p2p_Listening = False  # flag to indicate if client is currently listening for p2p connection
 chatRequests = {}  # dictionary of usernames who sent requests
@@ -148,7 +149,8 @@ def registerOrLogin(clientSocket):
                             "Recipient": serverAddress,
                             "Username": username,
                             "Password": password,
-                            "PeerPort": str(peerPort)
+                            "PeerPort": str(peerPort),
+                            "MediaPort": str(mediaPort)
                         },
                         body=b""
                     )
@@ -178,7 +180,7 @@ def registerOrLogin(clientSocket):
             print("Invalid choice. Please enter 'l', 'r', or 'q'.")
 
 def loginToServer():  # client must login to server
-    global peerPort
+    global peerPort, mediaPort
     clientSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
     try:
@@ -189,6 +191,7 @@ def loginToServer():  # client must login to server
         return None
     
     peerPort = random.randint(1600,1700)
+    mediaPort = random.randint(1701,1800)
     return registerOrLogin(clientSocket)
 
 """Sends requests to the server."""
@@ -250,9 +253,17 @@ def receive_reply(clientSocket, username):
                 with printLock:
                     print("\nPeer received P2P chat request")
                 ip_port = rp.body.decode().strip()
-                ip= ip_port.split(":")[0]
-                port = int(ip_port.split(":")[1])
+                parts= ip_port.split(":")
+                ip = parts[0]
+                port = int(parts[1])
+
+                if len(parts)>= 3:
+                    peer_media_port = int(parts[2])
+                else:
+                    peer_media_port = 1700
+
                 p_username = rp.sender
+                peerMediaConnections[p_username] = peer_media_port
 
                 with printLock:
                     print(f"\nConnecting to {p_username}...")
@@ -302,7 +313,7 @@ def accept_request(clientSocket, username, requester, peerPort):
                 "Sender": username,
                 "Recipient": requester
             },
-            body= f"{serverAddress}:{peerPort}".encode())
+            body= f"{serverAddress}:{peerPort}:{mediaPort}".encode())
         
         try:
             clientSocket.send(accept_msg.encode())
@@ -347,14 +358,14 @@ def receive_media():  # UDP
             if mess.message == protocol.Messages.MEDIA:
                 sender = mess.sender
                 recipient = mess.recipient
-                file = mess.headers.get("FileName")  # this can come from #kwargs in the protocol header
+                file = mess.headers.get("File")  # this can come from #kwargs in the protocol header
                 NumChunks = int(mess.headers.get("TotalChunks"))
                 chunkIndex = int(mess.headers.get("ChunkIndex"))
                 chunkData = mess.body
 
                 keys = (sender, file)
                 with incoming_media_lock:
-                    if keys not in incoming_media_lock:
+                    if keys not in incoming_media:
                         incoming_media[keys] = {
                             'totalChunks': NumChunks,
                             'chunks' : [None]*NumChunks,
@@ -371,7 +382,7 @@ def receive_media():  # UDP
 
                         with open(save_name, 'wb') as f:
                             f.write(completeData)
-                        print(f"\n[Media] Received file '{file}' from {sender}, saved as 'save_name'" )
+                        print(f"\n[Media] Received file '{file}' from {sender}, saved as {save_name}" )
                         del incoming_media[keys]
 
         except Exception as e:
@@ -566,7 +577,7 @@ if __name__ == '__main__':
                  daemon=True).start()"""
             mediaSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             mediaSocket.bind(("0.0.0.0", mediaPort))
-            threading.Thread(target=receive_media, daemon=True.start())
+            threading.Thread(target=receive_media, daemon=True).start()
             break
 
 flag = True

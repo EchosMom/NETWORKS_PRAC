@@ -38,11 +38,11 @@ def handle_client(clientSocket, manager):
                     username = mess.headers.get("Username")
                     password = mess.headers.get("Password")
                     peer_port = mess.headers.get("PeerPort")
-                    udp_port = mess.headers.get("UDP_port")
+                    udp_port = mess.headers.get("MediaPort")
 
                     if clientSocket in clientInfo:
                         clientInfo[clientSocket]["peer_port"] = peer_port
-                        clientInfo[clientSocket]["UDP_port"] =udp_port
+                        clientInfo[clientSocket]["MediaPort"] =udp_port
 
                     auth_success, response = manager.authenticate(username, password)
 
