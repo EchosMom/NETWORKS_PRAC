@@ -280,7 +280,7 @@ def receive_reply(clientSocket, username):
                            "Sender": username,
                            "Recipient": p_username
                        },
-                       body=b""
+                       body=str(mediaPort).encode() #send to media port, for file transefer acknowlangements
                    )
                    peerSocket.send(ack_msg.encode())
 
@@ -443,8 +443,14 @@ def handle_peer_connection(peerSocket):
             if msg.message == protocol.Messages.ACK:
                 peer_username = msg.sender
                 peerConnections[peer_username] = peerSocket
+
+                try:
+                    peer_media_port = int(msg.body.decode())
+                    peerMediaConnections[peer_username] = peer_media_port
+                except:
+                    peerMediaConnections[peer_username] = 1700
                 
-                print(f"[P2P] Connected to {peer_username}! Please select option 3 to chat.")
+                print(f"[P2P] Connected to {peer_username}! Please select option 3 to chat or option 4 to exchange files.")
 
                 hc_thread = threading.Thread(target=handle_p2p_chat, 
                                 args=(peerSocket, peer_username, username), daemon=True)
