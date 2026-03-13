@@ -1,4 +1,4 @@
-#this file adds usability to the protocol.py
+# this file adds usability to the protocol.py
 import protocol
 
 class ProtocolUtils:
@@ -24,14 +24,14 @@ class ProtocolUtils:
         return self.headers.get("Recipient")
     
     def encode(self):
-        #remove duplicates
+        # remove duplicates
         headers = dict(self.headers)
 
         headers.pop("MessageType", None)
         headers.pop("Message", None)
         headers.pop("Sender", None)
 
-        #convert bytes for sending
+        # convert bytes for sending
         return protocol.Protocol.encodeMessage(
             self.message_type,
             self.message,
@@ -42,11 +42,11 @@ class ProtocolUtils:
     
     @classmethod
     def decode(cls, data):
-        #convert bytes to usable format
+        # convert bytes to usable format
         headers, body = protocol.Protocol.decodeMessage(data)
         return cls(headers, body)
     
-    #helper methods to check message type for impotant messages like text or media
+    # helper methods to check message type for impotant messages like text or media
     def is_text(self):
         return self.message == protocol.Messages.TEXT
     def is_group_text(self):
@@ -64,14 +64,14 @@ class ProtocolUtils:
 
 
 class ProtocolHandler:
-#handlesparsing incoming messages, esentially messge prosesing
+# handle sparsing incoming messages, esentially message prossessing
     def __init__(self, clientManager, groupManager):
         self.clientManager = clientManager
         self.groupManager = groupManager
 
     def handle_message(self, data, clientSocket):
         message = ProtocolUtils.decode(data)
-        #process message based on type and content, for example:
+        # process message based on type and content, for example:
         if message.is_login():
             username = message.headers.get("Username")
             password = message.headers.get("Password")
@@ -103,11 +103,10 @@ class ProtocolHandler:
 
         elif message.is_text():
             Recipient = message.recipient
-            text = message.body.decode()  #assuming body is bytes
-            #send text to recipient using client manager to find their socket, etc.
+            text = message.body.decode()  # assuming body is bytes 
+            return True  
 
     def handleCommand(self, message, clientSocket):
-        #this method would contain the logic to process different message types and perform actions like routing messages, managing groups, etc.
         command = message.headers.get("Message")
         sender = message.sender
 
@@ -119,21 +118,18 @@ class ProtocolHandler:
             reply = ProtocolUtils(headers={"MessageType": replyType, "Message": response}, body=b"").encode()
             clientSocket.send(reply)
        
-
     def handleData(self, message, clientSocket):
             command = message.headers.get("Message")
             sender = message.sender
 
             if command == protocol.Messages.TEXT:
                 recipient = message.headers.get("Recipient")
-                text = message.body.decode()  #assuming body is bytes
-                #send text to recipient using client manager to find their socket, etc.
-            elif command == protocol.Messages.GROUP_TEXT:
-                groupID = message.headers.get("Recipient")  #using Recipient field to specify groupID for group messages
                 text = message.body.decode()
-                #send text to all members of the group using group manager to find members and client manager to find their sockets, etc.
-
-            ### ADD MEDIA HANDLING LOGIC HERE, WILL USE UDP FOR MEDIA TRANSFER, THIS IS JUST A PLACEHOLDER FOR NOW
+                # send text to recipient using client manager to find their socket, etc.
+            elif command == protocol.Messages.GROUP_TEXT:
+                groupID = message.headers.get("Recipient")  # using Recipient field to specify groupID for group messages
+                text = message.body.decode()
+                # send text to all members of the group using group manager to find members and client manager to find their sockets, etc.
 
     def handleError(self, message, clientSocket):
             errorCode = message.headers.get("ErrorCode")

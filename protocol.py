@@ -1,20 +1,19 @@
-#defines format for protocol messages
-
+"""defines format for protocol messages"""
 class MessageType:
     COMMAND = "COMMAND"
     CONTROL = "CONTROL"
     DATA = "DATA"
 
-    #adding message types for P2P
+    # adding message types for P2P
     CHAT = "CHAT"
     P2P_REQ = "P2P_REQ" 
     P2P_ACC = "P2P_ACC"
     P2P_REJ = "P2P_REJ"
-    P2P_OFFER = "P2P_OFFER"     #for connection details
-    P2P_ICE = "P2P_ICE"     # for NAT traversal
+    P2P_OFFER = "P2P_OFFER"  # for connection details
+    P2P_ICE = "P2P_ICE"  # for NAT traversal
 
 class Messages:
-        #command messages
+        # command messages
         LOGIN = "LOGIN"
         REGISTER = "REGISTER"
         LOGOUT = "LOGOUT"
@@ -26,14 +25,14 @@ class Messages:
         CHAT_REJECT = "CHAT_REJECT"
         P2P_OFFER = "P2P_OFFER"
 
-        #control messages
+        # control messages
         ACK = "ACK"
         ERROR = "ERROR"
         CHAT_INFO = "CHAT_INFO"
         GET_PEER_UDP_INFO = "GET_PEER_UDP_INFO"
         PEER_UDP_INFO = "PEER_UDP_INFO"
 
-        #data messages
+        # data messages
         TEXT = "TEXT"
         GROUP_TEXT = "GROUP_TEXT"
         MEDIA = "MEDIA"
@@ -48,12 +47,11 @@ class ErrorCodes:
 class Protocol:
       TCP_PORT = 1500   
       UDP_PORT  = 1501
-      MAX_HEADER_SIZE = 4096 #wont allow message header longer than 4kb
-      MAX_MESSAGE_BODY_SIZE = 65536 #wont allow message longer than 64kb taken from common lengths reccomended in early internet
-      #UDP packet size
-      MAX_UDP_PACKET_SIZE = 65507 #max size of UDP packet payload, taken from standard limits for UDP datagrams
+      MAX_HEADER_SIZE = 4096  # wont allow message header longer than 4kb
+      MAX_MESSAGE_BODY_SIZE = 65536  # wont allow message longer than 64kb taken from common lengths reccomended in early internet
+      MAX_UDP_PACKET_SIZE = 65507  # max size of UDP packet payload, taken from standard limits for UDP datagrams
 
-      @staticmethod #create message from specified protocol
+      @staticmethod  # create message from specified protocol
       def encodeMessage(type, message, sender, **kwargs):
          headers = [
             f"MessageType: {type}",
@@ -61,32 +59,32 @@ class Protocol:
             f"Sender: {sender}"
          ]
 
-         #add any additional headers from kwargs
+         # add any additional headers from kwargs
          for key, value in kwargs.items():
-            if key != 'body' : #body would be a text massage or binary media being sent
+            if key != 'body' :  # body would be a text massage or binary media being sent
              headers.append(f"{key}: {value}")
              
-         headers.append("") #add empty line to indicate end of headers
+         headers.append("")  # add empty line to indicate end of headers
          headerString = "\n".join(headers)
 
-         header_bytes = headerString.encode() #encode headers to bytes
+         header_bytes = headerString.encode()  # encode headers to bytes
 
-         #if data message, include body
+         # if data message, include body
          body = kwargs.get('body', "")
          if isinstance(body, str):
             body = body.encode()
         
          return headerString.encode() + b"\n\n" + body
                          
-      @staticmethod #devide message into headers and body
+      @staticmethod  # divide message into headers and body
       def decodeMessage(data):
         try:
-            parts = data.split(b"\n\n", 1) #split headers and body at first double newline
-            headerPart = parts[0].decode("utf-8", errors = "ignore") #decode headers from bytes to string
-            body = parts[1] if len(parts) > 1 else b"" #get body as bytes if it exists
+            parts = data.split(b"\n\n", 1)  # split headers and body at first double newline
+            headerPart = parts[0].decode("utf-8", errors = "ignore")  # decode headers from bytes to string
+            body = parts[1] if len(parts) > 1 else b""  # get body as bytes if it exists
 
             headers = {}
-            for line in headerPart.split("\n"): #split headers into lines and parse key-value pairs
+            for line in headerPart.split("\n"):  # split headers into lines and parse key-value pairs
                 if ": " in line:
                     key, value = line.split(": ", 1)
                     headers[key.strip()] = value.strip()

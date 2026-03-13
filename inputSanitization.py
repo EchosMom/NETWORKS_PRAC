@@ -1,14 +1,13 @@
-#file taht will handle basic sercurity vulnerablity in terms of filtering user input
+"""file that will handle basic sercurity vulnerablity in terms of filtering user input"""
+MAX_LENG = 1000  # prevents buffer overflows
 
-MAX_LENG = 1000 #prevents buffer overflows
-
-#basic input sanitization
+# basic input sanitization
 def sanitize_input(text):
     if not text or len(text)>MAX_LENG:
         return None
-    #removes control characters
+    # removes control characters
     sanitized = ''.join(char for char in text if ord(char)>=32 or char =='\n')
-    #for terminal output, replace ESC character
+    #f or terminal output, replace ESC character
     sanitized = sanitized.replace('\x1b', '?')
     return sanitized
 
@@ -22,12 +21,12 @@ def IP_port_is_safe(ip_port_string):
         ip, portString = ip_port_string.split(":")
         portNum = int(portString)
 
-        #check ip
+        # check ip
         parts = ip.split('.')
         if len(parts) !=4:
             return False
         
-        #check port range
+        # check port range
         if not (1024<=portNum<=65535):
             return False
         return True

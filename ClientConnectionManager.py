@@ -5,22 +5,22 @@ import threading
 """handles file storage for usernames and groups"""
 class ClientConnectionManager:
     def __init__(self, dataFile="serverData"):
-        self.clients = [] #track clients by username
-        self.client_info = {} #track client info by socket
-        self.lock = threading.Lock() #lock for thread safety
+        self.clients = []  # track clients by username
+        self.client_info = {}  # track client info by socket
+        self.lock = threading.Lock()  # lock for thread safety
         self.dataFile = dataFile 
 
         os.makedirs(dataFile, exist_ok=True)
-        self.usernameFile = os.path.join(dataFile, "usernames.txt") #file to store usernames
+        self.usernameFile = os.path.join(dataFile, "usernames.txt") # file to store usernames
     
-    #user registration and login
+    # user registration and login
     def register(self, username, password):
         with self.lock:
             while self.usernameExists(username):
                 print("Username already taken, please try again.")
 
             with open(self.usernameFile, "a") as f:
-                f.write(f"{username}:{password}\n")  #add counter at later stage
+                f.write(f"{username}:{password}\n")  # add counter at later stage
 
             return True, "Registration successful."
                 
