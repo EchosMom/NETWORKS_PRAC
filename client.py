@@ -40,9 +40,10 @@ def listen_for_p2p():
     p2p_Listening = True
 
 def registerOrLogin(clientSocket):
+    attempt_count = 0
+    print("-----------------------------")
+    print("Welcome to Chat-Chat!")
     while True:
-        print("-----------------------------")
-        print("Welcome to Chat-Chat!")
         print("(L)ogin existing user")
         print("(R)egister new user")
         print("(Q)uit")
@@ -64,7 +65,6 @@ def registerOrLogin(clientSocket):
             continue
 
         if choice.lower() == "l":
-            attempt_count = 0
             successful = False
             while attempt_count != 3 and not successful:
                 if attempt_count>0:  # Only ask for credentials again if this is a retry
@@ -98,20 +98,23 @@ def registerOrLogin(clientSocket):
                     return (username, clientSocket)
                 elif reply.message == protocol.Messages.ERROR:
                     attempt_count+=1
-                    print(f"Login failed: {reply.body.decode()}")
+                    print(f"\nLogin failed: {reply.body.decode().strip()}")
                 
                     if attempt_count <3:
                         retry = input(f"Try again? {3-attempt_count} tries remaining (y/n): ")
                         if retry != 'y':
-                       
                             clientSocket.close()
-                        return None 
+                            return None
+                    else:
+                        clientSocket.close()
+                        return None
+                        
         elif choice.lower() == "r":
              # validate strength using the connection manager helper
              is_valid, errorMsg = ClientConnectionManager.is_password_strong(password)
 
              if not is_valid:
-                 print(f"Password too weak , {errorMsg}")
+                 print(f"Password too weak. {errorMsg}\n")
                  continue
              
              
@@ -175,7 +178,7 @@ def registerOrLogin(clientSocket):
                 retry = input("Try again? (y/n): ").strip().lower()
                 if retry != 'y':
                     clientSocket.close()
-                    return None
+                return None
         else:
             print("Invalid choice. Please enter 'l', 'r', or 'q'.")
 
@@ -569,10 +572,8 @@ if __name__ == '__main__':
         login_result = loginToServer()
         if login_result is None:
             print("Cannot continue without login.")
-            tryAgain= input("Try again? (y/n): ")
-            if tryAgain.lower() == "n":
-                exit()
-                break
+            exit()
+            break
         else:
             username, clientSocket = login_result
             listen_for_p2p()
