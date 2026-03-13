@@ -1,4 +1,8 @@
 ZukoCat:passwaord123
 EchoCat:passwaord321
 RubyDog:pswrd123
-BirbBird:pswrd321
+RooiFox:Password321
+BlueBird:Password123
+GoldFish:Wordpass123
+FlyBat:Wordpass321
+BirbBird:Pswrd321

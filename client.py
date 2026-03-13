@@ -86,7 +86,7 @@ def registerOrLogin(clientSocket):
                 clientSocket.send(login_msg.encode())
             
                 # Wait for server reply
-                replyBytes = clientSocket.recv(4096)
+                replyBytes = clientSocket.recv(protocol.Protocol.MAX_MESSAGE_BODY_SIZE)
                 if not replyBytes:
                     print("Server disconnected.")
                     clientSocket.close()
@@ -106,6 +106,7 @@ def registerOrLogin(clientSocket):
                             clientSocket.close()
                             return None
                     else:
+                        print("Cannot continue without login.")
                         clientSocket.close()
                         return None
                         
@@ -116,7 +117,6 @@ def registerOrLogin(clientSocket):
              if not is_valid:
                  print(f"Password too weak. {errorMsg}\n")
                  continue
-             
              
              register_msg = ProtocolUtils(
                  headers={
@@ -130,7 +130,6 @@ def registerOrLogin(clientSocket):
                  },
                  body=b""
              )
-            
              clientSocket.send(register_msg.encode())
             
             # Wait for server reply
@@ -142,7 +141,8 @@ def registerOrLogin(clientSocket):
             
              reply = ProtocolUtils.decode(replyBytes)
              if reply.message == protocol.Messages.ACK:
-                print(f"Registration successful! Now logging in....")
+                print(f"{reply.body.decode().strip()} Proceeding to login...")
+                
                 # After successful registration, automatically proceed to login
                 login_msg = ProtocolUtils(
                         headers={
@@ -159,7 +159,7 @@ def registerOrLogin(clientSocket):
                     )
                 clientSocket.send(login_msg.encode())
                     
-                replyBytes = clientSocket.recv(4096)
+                replyBytes = clientSocket.recv(protocol.Protocol.MAX_MESSAGE_BODY_SIZE)
                 if not replyBytes:
                         print("Server disconnected.")
                         clientSocket.close()
@@ -174,11 +174,11 @@ def registerOrLogin(clientSocket):
                         return None
                
              elif reply.message == protocol.Messages.ERROR:
-                print(f"Registration failed: {reply.body.decode()}")
-                retry = input("Try again? (y/n): ").strip().lower()
+                print(f"Registration failed: {reply.body.decode().strip()}")
+                retry = input("Try again? (y/n): ").lower()
                 if retry != 'y':
                     clientSocket.close()
-                return None
+                    return None
         else:
             print("Invalid choice. Please enter 'l', 'r', or 'q'.")
 
@@ -571,7 +571,6 @@ if __name__ == '__main__':
     while True:
         login_result = loginToServer()
         if login_result is None:
-            print("Cannot continue without login.")
             exit()
             break
         else:
