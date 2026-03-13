@@ -222,8 +222,7 @@ def receive_reply(clientSocket, username):
 
             if type == protocol.MessageType.P2P_REQ:
                  requester = rp.sender
-                 with printLock:
-                    print(f"\n[P2P Request] {requester} wants to chat")
+                 print(f"\n[P2P Request] {requester} wants to chat")
                  chatRequests[requester] = rp
 
             elif type == protocol.MessageType.CONTROL and rp.message == protocol.Messages.CHAT_INFO:
@@ -535,7 +534,7 @@ def chat_with_group(group_name):  # handles sending
             if message.lower() == "quit":
                 with printLock:
                     sys.stdout.write("\r" + " " * 80 + "\r")
-                    print(f"\n[P2P] Ending chat with {group_name}.")
+                    print(f"\nEnding chat with {group_name}.")
                 chatMode = False
                 break
 
@@ -559,7 +558,7 @@ def chat_with_group(group_name):  # handles sending
             break
 
     threading.current_thread().in_group_chat = False  # updates flag
-    print(f"\n[P2P] Chat with {group_name} ended.")
+    print(f"\nChat with {group_name} ended.")
 
 if __name__ == '__main__':
     while True:
@@ -603,9 +602,7 @@ while flag:
         print("8. Send group chat request to server")
         print("9. Send message to group chat")
         print("10. Logout")
-
-    with printLock:
-        option = input("\nEnter option number: ")
+    option = input("\nEnter option number: ")
 
     if option == "1":
         target = input("Enter username to chat with: ")
