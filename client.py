@@ -225,7 +225,7 @@ def receive_reply(clientSocket, username):
 
             if type == protocol.MessageType.P2P_REQ:
                  requester = rp.sender
-                 print(f"\n[P2P Request] {requester} wants to chat")
+                 print(f"\n{requester} wants to chat")
                  chatRequests[requester] = rp
             
             elif rp.message == protocol.Messages.ERROR:
@@ -257,7 +257,7 @@ def receive_reply(clientSocket, username):
 
             elif type == protocol.MessageType.P2P_OFFER:
                 with printLock:
-                    print("\nPeer received P2P chat request")
+                    print(f"\n{rp.sender} received chat request")
                 ip_port = rp.body.decode().strip()
                 parts= ip_port.split(":")
                 ip = parts[0]
@@ -272,7 +272,7 @@ def receive_reply(clientSocket, username):
                 peerMediaConnections[p_username] = peer_media_port
 
                 with printLock:
-                    print(f"\nConnecting to {p_username}...")
+                    print(f"Connecting to {p_username}...")
 
                 try:
                    peerSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -300,7 +300,7 @@ def receive_reply(clientSocket, username):
                    p2p_thread.start()
                    
                    with printLock:
-                       print(f"Connected to {p_username}! Please select option 3 to chat.")
+                       print(f"Connected to {p_username}! Please select option 3 to chat or option 4 to exchange files.")
 
                 except Exception as e:
                      with printLock:
@@ -323,7 +323,7 @@ def accept_request(clientSocket, username, requester, peerPort):
         
         try:
             clientSocket.send(accept_msg.encode())
-            print(f"Chat request from {requester} accepted. Please select option 3 to chat.")
+            print(f"Accepted chat request from {requester}.")
         except Exception as e:
             print("Error: failed to send accept message.", e)
 
@@ -356,10 +356,13 @@ def send_message(username, p_username, mess):
 
 def receive_media():  # UDP
     global mediaSocket
+    # print("Receiver listening on:", mediaPort)
     while True:
         try:
             data, addr = mediaSocket.recvfrom(65536)
             mess = ProtocolUtils.decode(data)
+            if mess.sender == username:
+                continue
 
             if mess.message == protocol.Messages.MEDIA:
                 sender = mess.sender
@@ -388,7 +391,7 @@ def receive_media():  # UDP
 
                         with open(save_name, 'wb') as f:
                             f.write(completeData)
-                        print(f"\n[Media] Received file '{file}' from {sender}, saved as {save_name}" )
+                        print(f"\nReceived file '{file}' from {sender}, saved as {save_name}" )
                         del incoming_media[keys]
 
         except Exception as e:
@@ -402,7 +405,9 @@ def send_media(username, p_username, filePath):
     try: # getting IP from TCP socket
         peerSocket = peerConnections[p_username]
         peerIP = peerSocket.getpeername()[0]
-        peerAddress = (peerIP, mediaPort)
+        # peerAddress = (peerIP, mediaPort)
+        peerUDPPort = peerMediaConnections[p_username]
+        peerAddress = (peerIP, peerUDPPort)
 
         # reading file and splitting to chunks
         with open(filePath, 'rb') as f:
@@ -429,6 +434,7 @@ def send_media(username, p_username, filePath):
             mess = ProtocolUtils(headers=headers, body=chunk)
             mediaSocket.sendto(mess.encode(), peerAddress)
         print(f"File '{fileName}' sent successfully.")
+        print("Sending UDP to:", peerIP, peerUDPPort)
         
     except FileNotFoundError:
         print("File not Found.")
@@ -456,7 +462,7 @@ def handle_peer_connection(peerSocket):
                 except:
                     peerMediaConnections[peer_username] = 1700
                 
-                print(f"[P2P] Connected to {peer_username}! Please select option 3 to chat or option 4 to exchange files.")
+                print(f"Connected to {peer_username}! Please select option 3 to chat or option 4 to exchange files.")
 
                 hc_thread = threading.Thread(target=handle_p2p_chat, 
                                 args=(peerSocket, peer_username, username), daemon=True)
@@ -522,7 +528,7 @@ def handle_p2p_chat(peerSocket, p_username, username):
             break
 
     # disconnecting from peer
-    print(f"\n[P2P] Disconnected from {p_username}")
+    print(f"\nDisconnected from {p_username}")
     if p_username in peerConnections:
         del peerConnections[p_username] # remove from peerConnections
     try:
@@ -586,7 +592,8 @@ if __name__ == '__main__':
                  daemon=True).start()"""
             mediaSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             mediaSocket.bind(("0.0.0.0", mediaPort))
-            threading.Thread(target=receive_media, daemon=True).start()
+            threading.Thread(target=receive_media
+                             , daemon=True).start()
             break
 
 flag = True
@@ -620,7 +627,7 @@ while flag:
             print("Pending chat requests:")
             for requester in chatRequests.keys():
                 print(f"- {requester}")
-            selected = input("Enter username of request to respond to: ")
+            selected = input("\nEnter username of request to respond to: ")
             if selected in chatRequests:
                 choice = input(f"Accept chat request from {selected}? (y/n): ")
                 if choice.lower() == "y":
@@ -702,7 +709,7 @@ while flag:
                 )
                 try:
                     clientSocket.send(group_info_request.encode())
-                    print(f"Connecting to group {group_name}. Please choose 9 to see connections.")  # send msg to server     
+                    print(f"Connecting to group {group_name}. Please select option 9 to chat with a group.")  # send msg to server     
                 except Exception as e:
                     print(f"Failed to send group request: {e}")
             else:
