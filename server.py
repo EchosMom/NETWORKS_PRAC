@@ -200,6 +200,7 @@ def send_group_message(groupName, sender, text):
             )
             try:
                 sock.send(msg.encode())
+                print(f"Forwarded group message from {sender} to {username}")
             except Exception as e:
                 disconnect_client(sock)
             
