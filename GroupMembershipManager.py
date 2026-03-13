@@ -1,23 +1,12 @@
+"""Group Membership Manager"""
 import threading
 import uuid
 import os
 
-"""
-    issue with group management
-    leaving and joining groups are fine, 
-    if the goup is empty (no members)
-    and someone joins the group, 
-    the first entry is ",EchoCat" instead of just "EchoCat"
-
-    Still nothing going to server but the group management is working
-    in the groupData.txt
-
-    Therefore it is only the sending msgs at the moment
-"""
 class GroupMembershipManager:  
   def __init__(self, dataFile="serverData/groupData.txt"):
         self.dataFile = dataFile
-        self.groups = {} #groupID: {name, members}
+        self.groups = {}  # groupID: {name, members}
         self.lock = threading.Lock()
 
         os.makedirs("serverData", exist_ok=True)
@@ -25,14 +14,14 @@ class GroupMembershipManager:
             open(self.dataFile, "w").close()     
 
   def createGroup(self, groupName, creator):
-        with self.lock:     #thread safety
+        with self.lock:  # thread safety
             if not os.path.exists(self.dataFile):
                 return "File does not exist."
             
             if self.groupExists(groupName):
                 return "Group name already exists."
             
-            groupID = str(uuid.uuid4())[:8]  #short unique ID
+            groupID = str(uuid.uuid4())[:8]  # short unique ID
 
             with open(self.dataFile, "a") as f:
                 f.write(f"{groupID}:{groupName}:{creator}\n")
@@ -74,7 +63,7 @@ class GroupMembershipManager:
             with self.lock:
                 if not self.groupExists(groupName):
                     return "Group name does not exist."
-                #remove user from group in file (simplified, could be optimized)
+                # remove user from group in file (simplified, could be optimized)
                 with open(self.dataFile, "r") as f:
                     lines = f.readlines()
                 with open(self.dataFile, "w") as f:

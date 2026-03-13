@@ -8,24 +8,24 @@ import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 import ClientConnectionManager
-import protocol  #protocol module
-from ProtocolUtils import ProtocolUtils    #protocol utils for encoding/decoding messages
+import protocol
+from ProtocolUtils import ProtocolUtils  # protocol utils for encoding/decoding messages
 
 
 serverAddress = "127.0.0.1"  # Localhost
 serverPort = 1500             
 
-clientSockets = []          #track connected clients
-clientInfo = {}             #track clients with info - socket -> usrname, p2p_port, public_ip}
+clientSockets = []  # track connected clients
+clientInfo = {}  # track clients with info - socket -> usrname, p2p_port, public_ip}
 
 """handle individual client connections"""
 def handle_client(clientSocket, manager): 
     try:
-        #receiving msg
+        # receiving msg
         while True:
-            data = clientSocket.recv(protocol.Protocol.MAX_MESSAGE_BODY_SIZE)    #receive
+            data = clientSocket.recv(protocol.Protocol.MAX_MESSAGE_BODY_SIZE)
                                
-            if not data:     #empty msg = client disconnected
+            if not data:  # empty msg = client disconnected
                 break
             
             try:
@@ -33,7 +33,7 @@ def handle_client(clientSocket, manager):
                 msg_type = mess.message_type
                 msg_content = mess.message
                 
-                #login handling
+                # login handling
                 if mess.message == protocol.Messages.LOGIN:
                     username = mess.headers.get("Username")
                     password = mess.headers.get("Password")
@@ -123,15 +123,15 @@ def handle_p2p_req(requestor_socket, mess):
     target_usr = mess.headers.get("Recipient")
     requestor_usr = mess.headers.get("Sender")
 
-    #find targets socket
-    targetSocket = None         #initialise
+    # find targets socket
+    targetSocket = None  # initialise
 
     for sock, info in clientInfo.items():
         if info.get("username") == target_usr:
             targetSocket = sock
             break
 
-    if targetSocket:        #not empty
+    if targetSocket:  # not empty
         forward_msg = ProtocolUtils(
             headers={
                 "MessageType": protocol.MessageType.P2P_REQ,    
@@ -141,9 +141,8 @@ def handle_p2p_req(requestor_socket, mess):
             },
             body=mess.body                                      
         )
-
         targetSocket.send(forward_msg.encode())    
-        print(f"Forwarded P2P request from {requestor_usr} to {target_usr}")    # happens in the server terminal        
+        print(f"Forwarded P2P request from {requestor_usr} to {target_usr}")  # prints in the server terminal        
 
     else:
         error_msg = ProtocolUtils(
@@ -156,7 +155,7 @@ def handle_p2p_req(requestor_socket, mess):
             body=b"User not online"
         )
         requestor_socket.send((error_msg).encode())
-        print(f"Failed to forward P2P request from {requestor_usr} to {target_usr}")    # happens in the server terminal        
+        print(f"Failed to forward P2P request from {requestor_usr} to {target_usr}")        
 
        
 """forward p2p conn data to target client"""
@@ -173,16 +172,6 @@ def forward_to_target(mess):
                 print(f"Error forwarding message to {target_usr}: ", e)
             break
 
-"""broadcast to all except sender UNUSED METHOD
-def broadcast(msg, senderSocket):
-    for sock in clientSockets[:]:   #iterate over copy of list (safer)
-        if sock != senderSocket:
-            try:
-                sock.sendall(msg)       #seems off
-            except:
-                disconnect_client(sock) #remove failed conns
-"""
-
 """find group members and sends msgs to those online"""
 def send_group_message(groupName, sender, text):
     members = []
@@ -193,11 +182,11 @@ def send_group_message(groupName, sender, text):
                 if parts[1] == groupName:
                     mems = parts[2].strip().split(",")
                     for m in mems:
-                        members.append(m)   # usernames in group
+                        members.append(m)  # add members to send message list
     except Exception as e:
         return f"Error reading groupData.txt: {e}"
 
-    for sock, info in clientInfo.items():       #all connected clients
+    for sock, info in clientInfo.items():  # all connected clients
         username = info.get("username")
         if username in members and username != sender:
             msg = ProtocolUtils(
@@ -215,7 +204,6 @@ def send_group_message(groupName, sender, text):
                 disconnect_client(sock)
             
 """sends list of online group membbers to sender"""
-
 def getMembers(groupName, sender):
     members = []
     try:
@@ -225,13 +213,13 @@ def getMembers(groupName, sender):
                 if parts[1] == groupName:
                     mems = parts[2].strip().split(",")
                     for m in mems:
-                        members.append(m)   # usernames in group
+                        members.append(m)
                     if sender not in members:
                         members.append(sender)                    
     except:
         return "Hmm... something went wrong"
     
-    #find sender scoket
+    # find sender socket
     sender_socket = None
     for sock, info in clientInfo.items():
         if info.get("username") == sender:
@@ -258,8 +246,6 @@ def getMembers(groupName, sender):
     except:
             disconnect_client(sender_socket)
             return f"Error: Cannot send group member list to {sender}"
-    
-
 
 """remove connected clients"""
 def disconnect_client(sock):
@@ -284,20 +270,19 @@ def start_server():
 
     print("Server is listening on {}:{}".format(serverAddress, serverPort))
 
-    manager = ClientConnectionManager.ClientConnectionManager( dataFile = "serverData") #manage clients and data
+    manager = ClientConnectionManager.ClientConnectionManager( dataFile = "serverData")  # manage clients and data
 
-    while True:     #server always-on
+    while True:  # server always-on
         clientSocket, clientAddress = serverSocket.accept()
         print("New connection from {}:{}".format(clientAddress[0], clientAddress[1]))
 
         clientSockets.append(clientSocket)
 
-        #store client adress info
+        # store client address information
         clientInfo[clientSocket] = {
             "address": clientAddress,
-            "username": None,            #will be set after login
-            "UDP_PORT": 1501              # add udp port for p2p
-            #"peer_port": None
+            "username": None,  # will be set after login
+            "UDP_PORT": 1501
         }
 
         thread = threading.Thread(
@@ -309,4 +294,3 @@ def start_server():
 
 if __name__ == "__main__":
     start_server()
-## ClientConnectionManager class moved to its own file for better organization, see ClientConnectionManager.py
