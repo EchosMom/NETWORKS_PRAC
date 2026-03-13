@@ -32,7 +32,6 @@ def handle_client(clientSocket, manager):
                 mess = ProtocolUtils.decode(data)
                 msg_type = mess.message_type
                 msg_content = mess.message
-                
                 # login handling
                 if mess.message == protocol.Messages.LOGIN:
                     username = mess.headers.get("Username")
@@ -42,7 +41,7 @@ def handle_client(clientSocket, manager):
 
                     if clientSocket in clientInfo:
                         clientInfo[clientSocket]["peer_port"] = peer_port
-                        clientInfo[clientSocket]["MediaPort"] =udp_port
+                        clientInfo[clientSocket]["MediaPort"] = udp_port
 
                     auth_success, response = manager.authenticate(username, password)
 
@@ -67,9 +66,38 @@ def handle_client(clientSocket, manager):
                             },
                             body=response.encode()
                         )
+                    print(f"Sending login reply to {username}, auth_success={auth_success}")
                     clientSocket.send(reply.encode())
                     continue
                 
+                if msg_content == protocol.Messages.REGISTER:
+                    username = mess.headers.get("Username")
+                    password = mess.headers.get("Password")
+                    response, message = manager.register(username, password)
+                    if response == True:
+                        reply = ProtocolUtils(
+                            headers={
+                                "MessageType": protocol.MessageType.CONTROL,
+                                "Message": protocol.Messages.ACK,
+                                "Sender": "server",
+                                "Recipient": username
+                            },
+                            body=message.encode()
+                        )
+                    else:
+                        reply = ProtocolUtils(
+                            headers={
+                                "MessageType": protocol.MessageType.CONTROL,
+                                "Message": protocol.Messages.ERROR,
+                                "Sender": "server",
+                                "Recipient": username
+                            },
+                            body=message.encode()
+                        )
+                    clientSocket.send(reply.encode())
+
+                    continue
+
                 if msg_content == protocol.Messages.LOGOUT:
                     disconnect_client(clientSocket)
                     break
@@ -86,7 +114,7 @@ def handle_client(clientSocket, manager):
                                "Sender": "server",
                                "Recipient": mess.sender   
                               },
-                              body=f"{info['address'][0]:info.get('udp_port',1700)}".encode()
+                              body=f"{info['address'][0]}:{info.get('udp_port',1700)}".encode()
                             )
                             clientSocket.send(peer_info.encode())
                             break
@@ -283,7 +311,7 @@ def start_server():
         clientInfo[clientSocket] = {
             "address": clientAddress,
             "username": None,  # will be set after login
-            "UDP_PORT": 1501
+            "MediaPort": 1501
         }
 
         thread = threading.Thread(
