@@ -253,7 +253,7 @@ def receive_reply(clientSocket, username):
                 text = rp.body.decode().strip()
                 
                 with printLock:
-                    sys.stdout.write("\r" + " " * 80 + "\r")
+                    sys.stdout.write("\r" + "" * 80 + "\r")
                     sys.stdout.write(f"[{sender}]: {text}\n")  # group message
                     sys.stdout.write(f"[{username}]: ")  # redisplay prompt
                     sys.stdout.flush()           
@@ -585,7 +585,7 @@ def handle_p2p_chat(peerSocket, p_username, username):
                         continue
                     text =  msg.body.decode().strip()
                     with printLock:
-                        sys.stdout.write("\r" + " " * 80 + "\r")  # clears current input line
+                        sys.stdout.write("\r" + "" * 80 + "\r")  # clears current input line
                         sys.stdout.write(f"[{p_username}]: {text}")
                         sys.stdout.write(f"\n[{username}]: ")  # redraw prompt       
                         sys.stdout.flush()
@@ -842,7 +842,7 @@ while flag:
         flag = False
         with printLock:
             print("Logged out.")
-            
+
     else:
         print("Invalid choice")
         
