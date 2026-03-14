@@ -22,6 +22,7 @@ incoming_media = {}
 global incoming_media_lock
 incoming_media_lock = threading.Lock()
 printLock = threading.Lock()
+stop_threads = threading.Event()
 peerConnections = {}  # dictionary of client and sockets
 peerMediaConnections = {}
 listenSocket = None
@@ -215,7 +216,7 @@ def send_request(clientSocket, username, recipient):
     
 """Receives replies from the server and prints them to the console."""
 def receive_reply(clientSocket, username):
-    while True:
+    while not stop_threads.is_set():
         try:
             rep = clientSocket.recv(protocol.Protocol.MAX_MESSAGE_BODY_SIZE)
             if not rep:
@@ -309,8 +310,10 @@ def receive_reply(clientSocket, username):
                         print(f"Failed to connect to peer: {e}")
                     
         except Exception as e:
-            with printLock:
-                print(f"Failed to connect to peer: {e}")
+            if not stop_threads.is_set():
+                with printLock:
+                    print(f"Error in receive_reply: {e}")
+            break                
 
 
 def accept_request(clientSocket, username, requester, peerPort):
@@ -330,16 +333,21 @@ def accept_request(clientSocket, username, requester, peerPort):
             print("Error: failed to send accept message.", e)
 
 def receive_peer_connections():
-    while True:  # Loops to accept connection from different peers
+    while not stop_threads.is_set():  # Loops to accept connection from different peers
         try:
+            listenSocket.settimeout(1.0)  # timeout
             new_socket, new_address = listenSocket.accept()  # Waits for incoming connections
             hpc_thread =threading.Thread(target=handle_peer_connection, args=(new_socket,), daemon=True)
             hpc_thread.start()
-        except:
-            with printLock:
-                print("Error: failed to accept peer connection.")
-            break
-   
+        except socket.timeout:
+            continue  # Check stop_threads flag
+        except Exception as e:
+                    if not stop_threads.is_set():
+                        with printLock:
+                            print("Error: failed to accept peer connection.")
+                    break   
+        
+
 """Sends Messages to peer."""
 def send_message(username, p_username, mess):
     if p_username in peerConnections:
@@ -358,6 +366,7 @@ def send_message(username, p_username, mess):
 
 def receive_media(username):  # UDP
     global mediaSocket
+    mediaSocket.settimeout(1.0)
     # print("Receiver listening on:", mediaPort)
     while True:
         try:
@@ -372,6 +381,8 @@ def receive_media(username):  # UDP
                 NumChunks = int(mess.headers.get("TotalChunks"))
                 chunkIndex = int(mess.headers.get("ChunkIndex"))
                 chunkData = mess.body
+
+                print(f"Received chunk {chunkIndex+1}/{NumChunks} from {sender}")
 
                 keys = (sender, file)
                 with incoming_media_lock:
@@ -394,6 +405,7 @@ def receive_media(username):  # UDP
 
                     ack_msg = ProtocolUtils(headers=ack_headers, body=b"")
                     mediaSocket.sendto(ack_msg.encode(), addr)
+                    print(f"Sent ACK for chunk {chunkIndex+1}")
 
                     # checks if all chunks received, cause UDP is unreliable
                     if all (chunk is not None for chunk in entry['chunks']):
@@ -405,7 +417,8 @@ def receive_media(username):  # UDP
                             f.write(completeData)
                         print(f"\nReceived file '{file}' from {sender}, saved as {save_name}" )
                         del incoming_media[keys]
-
+        except socket.timeout:
+            continue  # Just continue on timeout
         except Exception as e:
             print(f"[Media receive Error]{e}")
                  
@@ -435,6 +448,8 @@ def send_media(username, p_username, filePath):
         import time         #files failing cos of too much packets sent too fast
         import socket
         
+        max_retries = 5
+
         for i in range(NumChunks):
             start = i*chunkSize
             end = start+chunkSize
@@ -450,22 +465,38 @@ def send_media(username, p_username, filePath):
                 "ChunkIndex": str(i)
              }
             mess = ProtocolUtils(headers=headers, body=chunk)
-            while True:  # NEW LOOP
-                    mediaSocket.sendto(mess.encode(), peerAddress)
 
-                    mediaSocket.settimeout(0.2)   # wait for ACK
+            retries = 0
+            ack_received = False
 
+            while retries <max_retries and not ack_received:  
                     try:
+                        mediaSocket.sendto(mess.encode(), peerAddress)
+                        mediaSocket.settimeout(1.0)   # wait for ACK
+
                         ack_data, _ = mediaSocket.recvfrom(4096)
                         ack = ProtocolUtils.decode(ack_data)
 
                         if (ack.message == protocol.Messages.MEDIA_ACK and
                             ack.headers.get("ChunkIndex") == str(i)):
+                            ack_received = True
+                            print(f"Chunk {i+1}/{NumChunks} acknowledged")
                             break  # ACK received --> next chunk
 
                     except socket.timeout:
-                        print(f"Resending chunk {i}")
+                        retries +=1
+                        if retries < max_retries:
+                            print(f"Resending chunk {i+1} (attempt {retries+1}/{max_retries})")
+                        else:
+                            print(f"Failed to send chunk {i+1} after {max_retries} attempts")
+                            return
+                    except Exception as e:
+                        print(f"Error sending chunk {i+1}: {e}")
+                        return
 
+            if not ack_received:
+                print(f"Failed to send chunk {i+1} - no acknowledgment")
+                return
             time.sleep(0.002)
 
         print(f"File '{fileName}' sent successfully.")
@@ -788,16 +819,30 @@ while flag:
         },
         body=b""
         )
-        clientSocket.send(logout_msg.encode())
-        #logout error msgs i assume
-        rpc_thread.join()
-        rr_thread.join()
+        try:
+            clientSocket.send(logout_msg.encode())
+        except:
+            pass
 
-        clientSocket.close()
-        listenSocket.close()
+        stop_threads.set()
+        try:
+            clientSocket.close()
+        except:
+            pass
+
+        try:
+            listenSocket.close()
+        except:
+            pass
+
+        # Wait for threads with timeout
+        rpc_thread.join(timeout=2.0)
+        rr_thread.join(timeout=2.0)
+
         flag = False
         with printLock:
             print("Logged out.")
+            
     else:
         print("Invalid choice")
         
