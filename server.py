@@ -66,7 +66,7 @@ def handle_client(clientSocket, manager):
                             },
                             body=response.encode()
                         )
-                    print(f"Sending login reply to {username}, auth_success={auth_success}")
+                    print(f"Sending login reply to {username}, {response}")
                     clientSocket.send(reply.encode())
                     continue
                 

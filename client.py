@@ -21,6 +21,8 @@ global incoming_media
 incoming_media = {}
 global incoming_media_lock
 incoming_media_lock = threading.Lock()
+media_chunks = {}  # dictionary of received media chunks by (sender, file, chunkIndex)
+media_chunks_lock = threading.Lock()
 printLock = threading.Lock()
 stop_threads = threading.Event()
 peerConnections = {}  # dictionary of client and sockets
@@ -374,7 +376,13 @@ def receive_media(username):  # UDP
             mess = ProtocolUtils.decode(data)
             if mess.sender == username:
                 continue
-
+            
+            if (mess.message == protocol.Messages.MEDIA_ACK):
+                i = int(mess.headers.get("ChunkIndex"))
+                with media_chunks_lock:
+                    media_chunks[(mess.headers.get("Sender"), mess.headers.get("File"), i)] = True  # mark this chunk as acknowledged
+                print(f"Chunk {i}/{mess.headers.get('TotalChunks')} acknowledged")
+            
             if mess.message == protocol.Messages.MEDIA:
                 sender = mess.sender
                 file = mess.headers.get("File")  # this can come from #kwargs in the protocol header
@@ -392,7 +400,8 @@ def receive_media(username):  # UDP
                             'chunks' : [None]*NumChunks,
                         }
                     entry = incoming_media[keys]
-                    entry['chunks'][chunkIndex] = chunkData
+                    if entry['chunks'][chunkIndex] is None:
+                        entry['chunks'][chunkIndex] = chunkData
 
                     ack_headers = {
                         "MessageType": protocol.MessageType.DATA,
@@ -467,32 +476,51 @@ def send_media(username, p_username, filePath):
             mess = ProtocolUtils(headers=headers, body=chunk)
 
             retries = 0
+            key = (p_username, fileName, i)
             ack_received = False
+            with media_chunks_lock:
+                media_chunks[key] = False  # reset ack status for this chunk
 
             while retries <max_retries and not ack_received:  
-                    try:
-                        mediaSocket.sendto(mess.encode(), peerAddress)
-                        mediaSocket.settimeout(1.0)   # wait for ACK
+                try:
+                    mediaSocket.sendto(mess.encode(), peerAddress)
+                    print(f"Sending chunk {i+1} (attempt {retries+1}/{max_retries})")
+                    
+                    #mediaSocket.settimeout(1.0)   # wait for ACK
+                    # Wait for ACK by polling the media_chunks dict
+                    waited = 0
+                    timeout = 3.0  # seconds
+                    interval = 0.01  # poll every 10ms
+                    while waited < timeout:
+                        time.sleep(interval)
+                        waited += interval
+                        with media_chunks_lock:
+                            if media_chunks.get(key) == True:  # ACK received
+                                ack_received = True
+                                print(f"Chunk {i+1}/{NumChunks} acknowledged")
+                                del media_chunks[key]
+                                break
+                    
+                    """ack_data, _ = mediaSocket.recvfrom(4096)
+                    ack = ProtocolUtils.decode(ack_data)
 
-                        ack_data, _ = mediaSocket.recvfrom(4096)
-                        ack = ProtocolUtils.decode(ack_data)
-
-                        if (ack.message == protocol.Messages.MEDIA_ACK and
-                            ack.headers.get("ChunkIndex") == str(i)):
-                            ack_received = True
-                            print(f"Chunk {i+1}/{NumChunks} acknowledged")
-                            break  # ACK received --> next chunk
-
-                    except socket.timeout:
+                    if (ack.message == protocol.Messages.MEDIA_ACK and
+                        ack.headers.get("ChunkIndex") == str(i)):
+                        ack_received = True
+                        print(f"Chunk {i+1}/{NumChunks} acknowledged")
+                        break  # ACK received --> next chunk
+"""
+                    if not ack_received:
                         retries +=1
+                        # print(f"Send error: {e}")
                         if retries < max_retries:
                             print(f"Resending chunk {i+1} (attempt {retries+1}/{max_retries})")
                         else:
                             print(f"Failed to send chunk {i+1} after {max_retries} attempts")
                             return
-                    except Exception as e:
-                        print(f"Error sending chunk {i+1}: {e}")
-                        return
+                except Exception as e:
+                    print(f"Error sending chunk {i+1}: {e}")
+                    return
 
             if not ack_received:
                 print(f"Failed to send chunk {i+1} - no acknowledgment")
@@ -614,7 +642,7 @@ def chat_with_group(group_name):  # handles sending
             if message.lower() == "quit":
                 with printLock:
                     sys.stdout.write("\r" + " " * 80 + "\r")
-                    print(f"\nEnding chat with {group_name}.")
+                    print(f"\nEnding chat with {group_name}...")
                 chatMode = False
                 break
 
@@ -740,7 +768,7 @@ while flag:
             print("Connected peers:")
             for peer in peerConnections.keys():
                  print(f"- {peer}")
-            target = input("Enter username to connect: ")
+            target = input("Enter username to connect with: ")
             if target in peerConnections:
                  filepath = input("Enter path to media file or wait for file to send: ")
                  send_media(username, target, filepath)
