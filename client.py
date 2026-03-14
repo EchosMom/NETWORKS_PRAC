@@ -15,9 +15,11 @@ serverAddress = "127.0.0.1"  # Localhost
 serverPort = 1500
 peerPort = 1600
 mediaPort = 1700  # for sending media files, UDP_port
-chunkSize = 6000  # bytes per UDP packet
+chunkSize = 1400  # bytes per UDP packet
 mediaSocket = None
+global incoming_media
 incoming_media = {}
+global incoming_media_lock
 incoming_media_lock = threading.Lock()
 printLock = threading.Lock()
 peerConnections = {}  # dictionary of client and sockets
@@ -354,19 +356,18 @@ def send_message(username, p_username, mess):
         except Exception as e:
             print("Error: Peer message not sent.", e)
 
-def receive_media():  # UDP
+def receive_media(username):  # UDP
     global mediaSocket
     # print("Receiver listening on:", mediaPort)
     while True:
         try:
-            data, addr = mediaSocket.recvfrom(65536)
+            data, addr = mediaSocket.recvfrom(65536 * 2)
             mess = ProtocolUtils.decode(data)
             if mess.sender == username:
                 continue
 
             if mess.message == protocol.Messages.MEDIA:
                 sender = mess.sender
-                recipient = mess.recipient
                 file = mess.headers.get("File")  # this can come from #kwargs in the protocol header
                 NumChunks = int(mess.headers.get("TotalChunks"))
                 chunkIndex = int(mess.headers.get("ChunkIndex"))
@@ -378,10 +379,21 @@ def receive_media():  # UDP
                         incoming_media[keys] = {
                             'totalChunks': NumChunks,
                             'chunks' : [None]*NumChunks,
-                            'file' : [None]
                         }
                     entry = incoming_media[keys]
                     entry['chunks'][chunkIndex] = chunkData
+
+                    ack_headers = {
+                        "MessageType": protocol.MessageType.DATA,
+                        "Message": protocol.Messages.MEDIA_ACK,
+                        "Sender": username,
+                        "Recipient": sender,
+                        "ChunkIndex": str(chunkIndex),
+                        "File": file
+                    }
+
+                    ack_msg = ProtocolUtils(headers=ack_headers, body=b"")
+                    mediaSocket.sendto(ack_msg.encode(), addr)
 
                     # checks if all chunks received, cause UDP is unreliable
                     if all (chunk is not None for chunk in entry['chunks']):
@@ -406,6 +418,9 @@ def send_media(username, p_username, filePath):
         peerSocket = peerConnections[p_username]
         peerIP = peerSocket.getpeername()[0]
         # peerAddress = (peerIP, mediaPort)
+        if p_username not in peerMediaConnections:      #safe check
+            print("Peer has no UDP media port registered.")
+            return
         peerUDPPort = peerMediaConnections[p_username]
         peerAddress = (peerIP, peerUDPPort)
 
@@ -417,6 +432,9 @@ def send_media(username, p_username, filePath):
 
         print(f"Sending '{fileName}' to {p_username} ({NumChunks} chunks. . .)")
 
+        import time         #files failing cos of too much packets sent too fast
+        import socket
+        
         for i in range(NumChunks):
             start = i*chunkSize
             end = start+chunkSize
@@ -432,7 +450,24 @@ def send_media(username, p_username, filePath):
                 "ChunkIndex": str(i)
              }
             mess = ProtocolUtils(headers=headers, body=chunk)
-            mediaSocket.sendto(mess.encode(), peerAddress)
+            while True:  # NEW LOOP
+                    mediaSocket.sendto(mess.encode(), peerAddress)
+
+                    mediaSocket.settimeout(0.2)   # wait for ACK
+
+                    try:
+                        ack_data, _ = mediaSocket.recvfrom(4096)
+                        ack = ProtocolUtils.decode(ack_data)
+
+                        if (ack.message == protocol.Messages.MEDIA_ACK and
+                            ack.headers.get("ChunkIndex") == str(i)):
+                            break  # ACK received --> next chunk
+
+                    except socket.timeout:
+                        print(f"Resending chunk {i}")
+
+            time.sleep(0.002)
+
         print(f"File '{fileName}' sent successfully.")
         print("Sending UDP to:", peerIP, peerUDPPort)
         
@@ -519,9 +554,10 @@ def handle_p2p_chat(peerSocket, p_username, username):
                         continue
                     text =  msg.body.decode().strip()
                     with printLock:
-                        sys.stdout.write("\r" + "" * 80 + "\r")  # clears current input line
+                        sys.stdout.write("\r" + " " * 80 + "\r")  # clears current input line
                         sys.stdout.write(f"[{p_username}]: {text}")
                         sys.stdout.write(f"\n[{username}]: ")  # redraw prompt       
+                        sys.stdout.flush()
 
         except Exception as e:
             print("Error: failed to receive Message from peer.", e)
@@ -592,8 +628,10 @@ if __name__ == '__main__':
                  daemon=True).start()"""
             mediaSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             mediaSocket.bind(("0.0.0.0", mediaPort))
-            threading.Thread(target=receive_media
-                             , daemon=True).start()
+            threading.Thread(
+                target=receive_media,
+                args=(username,),
+                daemon=True).start()
             break
 
 flag = True
@@ -606,7 +644,7 @@ while flag:
         print("1. Send chat request to peer")
         print("2. Accept/ reject chat request")
         print("3. Send text to connected peer")
-        print("4. Send media to connected peer")
+        print("4. Send or receive media to connected peer")
         print("5. Create group")
         print("6. Join group")
         print("7. Leave group")
@@ -671,9 +709,9 @@ while flag:
             print("Connected peers:")
             for peer in peerConnections.keys():
                  print(f"- {peer}")
-            target = input("Enter username to send media: ")
+            target = input("Enter username to connect: ")
             if target in peerConnections:
-                 filepath = input("Enter path to media file: ")
+                 filepath = input("Enter path to media file or wait for file to send: ")
                  send_media(username, target, filepath)
             else:
               print("Not connected to that peer.")
@@ -751,6 +789,7 @@ while flag:
         body=b""
         )
         clientSocket.send(logout_msg.encode())
+        #logout error msgs i assume
         rpc_thread.join()
         rr_thread.join()
 

@@ -6,3 +6,4 @@ BlueBird:Password123
 GoldFish:Wordpass123
 FlyBat:Wordpass321
 BirbBird:Pswrd321
+LenaCat:passWd123
