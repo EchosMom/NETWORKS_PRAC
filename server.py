@@ -221,23 +221,18 @@ def forward_to_target(mess):
             break
 
 def forward_media_to_target(groupName, sender, filename, chunk_index, total_chunks, chunk_data):
-    print(f"DEBUG: Forwarding {filename} chunk {chunk_index+1}/{total_chunks} to group {groupName}")
-
+   
     members = getOnlineMember(groupName)
-    print(f"DEBUG: Online members in {groupName}: {members}")
-
+   
     if not members:  #works safely with empty list
-        print(f"DEBUG SERVER: No online members in group {groupName}")
         return
 
     for m in members:
         if m !=sender:
-            print(f"DEBUG SERVER: Attempting to forward to {m}")
             found = False
             for sock, info in clientInfo.items():
                 if info.get("username") == m:
                     found = True
-                    print(f"DEBUG SERVER: Found socket for {m}")
                     chunkMess = ProtocolUtils(
                         headers={
                             "MessageType": protocol.MessageType.DATA,
@@ -253,13 +248,11 @@ def forward_media_to_target(groupName, sender, filename, chunk_index, total_chun
                     )
                     try:
                         sock.send(chunkMess.encode())
-                        print(f"DEBUG SERVER: Successfully sent chunk {chunk_index+1} to {m}")
                     except Exception as e:
-                        print(f"DEBUG SERVER: Error sending to {m}: {e}")
                         break  # Found the socket, break inner loop
         
             if not found:
-                print(f"DEBUG SERVER: WARNING - Could not find socket for {m}")
+                print(f"WARNING - Could not find socket for {m}")
 
 
 
@@ -348,19 +341,17 @@ def getOnlineMember(groupName):
                 parts = line.strip().split(":")
                 if len(parts) >= 3 and parts[1] == groupName:
                     mems = parts[2].strip().split(",")
-                    print(f"DEBUG SERVER: All members in {groupName}: {mems}")
                     for m in mems:
                         # Check if member is online
                         for info in clientInfo.values():
                             if info.get("username") == m:
                                 members.append(m)
-                                print(f"DEBUG SERVER: {m} is online")
                                 break
                     break
      except Exception as e:
-        print(f"DEBUG SERVER: Error in getOnlineMember: {e}")
+        print(f"Error in getOnlineMember: {e}")
     
-     print(f"DEBUG SERVER: Returning members: {members}")
+     
      return members  # Always returns a list (empty if none found)
 
 """remove connected clients"""

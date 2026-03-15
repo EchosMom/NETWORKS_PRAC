@@ -271,8 +271,6 @@ def receive_reply(clientSocket, username):
                 group_name = rp.headers.get("GroupName")
                 chunk_data = rp.body  # Use lowercase for consistency
 
-                # Add debug print
-                print(f"DEBUG - Received group media chunk {chunk_index+1}/{total_chunks} from {sender}")
 
                 # using the same logic from receive_media
                 if isinstance(chunk_data, str):
@@ -309,23 +307,16 @@ def receive_reply(clientSocket, username):
                         # Save with group context in filename
                         FileBase, FileExt = os.path.splitext(filename)
                         saveName = f"group_{group_name}_from_{sender}_{FileBase}{FileExt}"
-                        print(f"DEBUG - Attempting to save as: {saveName}")
-                        print(f"DEBUG - Current working directory: {os.getcwd()}")
 
                         try:
                              with open(saveName, 'wb') as f:
                                  f.write(completeData)
-                             print(f"DEBUG - File written successfully!")
+
                              if os.path.exists(saveName):
                                 file_size = os.path.getsize(saveName)
-                                print(f"DEBUG - Verified file exists, size: {file_size} bytes")
-                             else:
-                                 print(f"DEBUG - ERROR: File does not exist after writing!")
-            
-                        except Exception as e:
-                            print(f"DEBUG - Error saving file: {e}")
-    
 
+                        except Exception as e:
+                            print(f" Error saving file: {e}")
 
                         print(f"\n[Group Media] Received file '{filename}' from {sender} in group {group_name}")
                         del incoming_media[key]
@@ -334,7 +325,6 @@ def receive_reply(clientSocket, username):
                 with printLock:
                     print(f"\n{rp.sender} received chat request")
                 ip_port = rp.body.decode().strip()
-                print(f"DEBUG - Received P2P_OFFER with body: {ip_port}")
                 parts= ip_port.split(":")
                 ip = parts[0]
                 port = int(parts[1])
@@ -346,7 +336,6 @@ def receive_reply(clientSocket, username):
 
                 p_username = rp.sender
                 peerMediaConnections[p_username] = peer_media_port
-                print(f"DEBUG - Stored media port for {p_username}: {peer_media_port}")
                 with printLock:
                     print(f"Connecting to {p_username}...")
 
@@ -461,13 +450,13 @@ def receive_media(username):  # UDP
                 if chunkIndex == 0:
                     while chunkData.startswith(b'\n'):
                         chunkData = chunkData[1:]
-                    print(f"DEBUG - Stripped leading newlines from first chunk")
+
 
                 #strinpping trailing newlines
                 correctSize = int(mess.headers.get("ChunkSize", len(chunkData)))
                 if len(chunkData) > correctSize:
                     chunkData = chunkData[:correctSize]
-                print(f"DEBUG - Received chunk {chunkIndex+1}/{NumChunks} from {sender}, size: {len(chunkData)} bytes")
+
 
                 keys = (sender, file)
                 with incoming_media_lock:
@@ -495,10 +484,7 @@ def receive_media(username):  # UDP
                     # checks if all chunks received, cause UDP is unreliable
                     if all (chunk is not None for chunk in entry['chunks']):
                         completeData = b''.join(entry['chunks'])  # put chunks together and save
-                        print(f"DEBUG: Received packet from {addr}")
-                        print(f"DEBUG: From user {sender}, chunk {chunkIndex}/{NumChunks}")
-                        print(f"DEBUG - First 20 bytes received: {completeData[:20]}")
-                        print(f"DEBUG - Last 20 bytes received: {completeData[-20:]}")
+
 
 
                         FileBase, FileExt = os.path.splitext(file)  # new file to prevent overriidng,[FileBase.FileExt]
@@ -507,7 +493,7 @@ def receive_media(username):  # UDP
                         with open(save_name, 'wb') as f:
                             f.write(completeData)
                         saved_size = os.path.getsize(save_name)
-                        print(f"DEBUG: Saved file size: {saved_size} bytes")  
+  
 
                         print(f"\nReceived file '{file}' from {sender}, saved as {save_name}" )
                         del incoming_media[keys]
@@ -520,7 +506,7 @@ def receive_media(username):  # UDP
 
                 with pendeing_ack_lock:
                     pendeing_acks[key] = True
-                print(f"DEBUG - ACK recorded for {fileName} chunk {chunk_index}")
+
 
         except socket.timeout:
             continue  # Just continue on timeout
@@ -547,8 +533,7 @@ def send_media(username, p_username, filePath):
         # reading file and splitting to chunks
         with open(filePath, 'rb') as f:
             fileData = f.read()
-            print(f"DEBUG - First 20 bytes of original: {fileData[:20]}")
-            print(f"DEBUG - Last 20 bytes of original: {fileData[-20:]}")
+
 
         NumChunks = (len(fileData)+chunkSize-1)//chunkSize
         fileName = os.path.basename(filePath)
@@ -562,7 +547,7 @@ def send_media(username, p_username, filePath):
             start = i*chunkSize
             end = start+chunkSize
             chunk = fileData[start:end]
-            print(f"DEBUG - Chunk {i+1} size: {len(chunk)} bytes")
+
 
             headers = {
                 "MessageType": protocol.MessageType.DATA,
@@ -758,8 +743,7 @@ def group_media_send(username, group_name, filePath, clientSocket):
 
          fileName = os.path.basename(filePath)
          file_hash = hashlib.md5(fileData).hexdigest()
-         print(f"DEBUG: Original file MD5: {file_hash}")
-         print(f"DEBUG: Original file size: {len(fileData)} bytes")
+
 
          sendInfo = ProtocolUtils(
              headers={
