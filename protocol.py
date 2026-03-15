@@ -38,6 +38,8 @@ class Messages:
         GROUP_TEXT = "GROUP_TEXT"
         MEDIA = "MEDIA"
         GROUP_MEDIA = "GROUP_MEDIA"
+        GROUP_MEDIA_META = "GROUP_MEDIA_META"
+        GROUP_MEDIA_CHUNK = "GROUP_MEDIA_CHUNK"
 
 class ErrorCodes:
       INVALID_COMMAND = 400

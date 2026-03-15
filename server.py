@@ -119,6 +119,26 @@ def handle_client(clientSocket, manager):
                             clientSocket.send(peer_info.encode())
                             break
 
+                if msg_content == protocol.Messages.GROUP_MEDIA_META:
+                    group_name = mess.headers.get("Recipient")
+                    filename = mess.headers.get("FileName")
+                    filesize = mess.headers.get("FileSize")
+                    filehash = mess.headers.get("FileHash")
+                    sender = mess.sender
+                     # Store metadata temporarily
+                        # Then forward to group members
+                   # prep_group_media_transfer(group_name, sender, filename, filesize, filehash)
+
+                if msg_content == protocol.Messages.GROUP_MEDIA_CHUNK:
+                    group_name = mess.headers.get("Recipient")
+                    filename = mess.headers.get("FileName")
+                    chunk_index = int(mess.headers.get("ChunkIndex"))
+                    total_chunks = int(mess.headers.get("TotalChunks"))
+                    chunk_data = mess.body
+                    sender = mess.sender
+                    # Forward chunk to all group members
+                    forward_media_to_target(group_name, sender, filename, chunk_index, total_chunks, chunk_data)
+
                 if msg_type == protocol.MessageType.P2P_REQ:
                     handle_p2p_req(clientSocket, mess)
 
@@ -200,6 +220,36 @@ def forward_to_target(mess):
                 print(f"Error forwarding message to {target_usr}: ", e)
             break
 
+def forward_media_to_target(groupName, sender, filename, chunk_index, total_chunks, chunk_data):
+    members = getOnlineMember(groupName)
+
+    for m in members:
+        if m !=sender:
+            for sock, info in clientInfo.items():
+                if info.get("username") == m:
+                    chunkMess = ProtocolUtils(
+                        headers={
+                            "MessageType": protocol.MessageType.DATA,
+                            "Message": protocol.Messages.GROUP_MEDIA_CHUNK,
+                            "Sender": sender,
+                            "Recipient": m,
+                            "FileName": filename,
+                            "TotalChunks": str(total_chunks),
+                            "ChunkIndex": str(chunk_index),
+                            "GroupName": groupName
+                        },
+                        body=chunk_data
+                    )
+                    try:
+                        sock.send(chunkMess.encode())
+                        print(f"Forwarded media to {groupName}")
+                    except Exception as e:
+                        print(f"Error media message to {groupName}: ", e)
+                    break
+
+
+
+
 """find group members and sends msgs to those online"""
 def send_group_message(groupName, sender, text):
     members = []
@@ -275,6 +325,22 @@ def getMembers(groupName, sender):
     except:
             disconnect_client(sender_socket)
             return f"Error: Cannot send group member list to {sender}"
+    
+def getOnlineMember(groupName):
+    members = []
+    try:
+        with open("serverData/groupData.txt", "r") as f:
+            for line in f:
+                parts = line.strip().split(":")
+                if parts[1] == groupName:
+                    mems = parts[2].strip().split(",")
+                    for m in mems:
+                        for info in clientInfo.values():
+                            if info.get("username")==m:
+                              members.append(m)
+                              break       
+    except:
+        return "Hmm... something went wrong"
 
 """remove connected clients"""
 def disconnect_client(sock):

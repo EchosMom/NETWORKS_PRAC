@@ -260,7 +260,57 @@ def receive_reply(clientSocket, username):
                     sys.stdout.write("\r" + "" * 80 + "\r")
                     sys.stdout.write(f"[{sender}]: {text}\n")  # group message
                     sys.stdout.write(f"[{username}]: ")  # redisplay prompt
-                    sys.stdout.flush()           
+                    sys.stdout.flush()        
+
+            if rp.message == protocol.Messages.GROUP_MEDIA_CHUNK:
+                sender = rp,sender
+                filename = rp.headers.get("FileName")
+                chunk_index = int(rp.headers.get("ChunkIndex"))
+                total_chunks = int(rp.headers.get("TotalChunks"))
+                group_name = rp.headers.get("GroupName")
+                chunk_data = rp.body 
+
+                #using the same logic fom recive media
+                if isinstance(chunkData, str):
+                     chunkData = chunkData.encode('latin-1')
+    
+                # Strip leading newlines from first chunk
+                if chunk_index == 0:
+                     while chunkData.startswith(b'\n'):
+                        chunkData = chunkData[1:]
+    
+                # Strip trailing bytes if needed
+                correctSize = int(rp.headers.get("ChunkSize", len(chunkData)))
+                if len(chunkData) > correctSize:
+                    chunkData = chunkData[:correctSize]
+    
+                 # Use a different key that includes group name
+                key = (sender, group_name, filename)  # Group context
+    
+                with incoming_media_lock:
+                    if key not in incoming_media:
+                        incoming_media[key] = {
+                            'totalChunks': total_chunks,
+                            'chunks': [None] * total_chunks,
+                            'sender': sender,
+                             'group': group_name,
+                            'file': filename
+                     }
+                    entry = incoming_media[key]
+                    entry['chunks'][chunk_index] = chunkData
+        
+                    if all(chunk is not None for chunk in entry['chunks']):
+                        completeData = b''.join(entry['chunks'])
+            
+                         # Save with group context in filename
+                        FileBase, FileExt = os.path.splitext(file)
+                        save_name = f"group_{group_name}_from_{sender}_{FileBase}{FileExt}"
+            
+                        with open(save_name, 'wb') as f:
+                            f.write(completeData)
+            
+                        print(f"\n[Group Media] Received file '{file}' from {sender} in group {group_name}")
+                        del incoming_media[key]
 
             elif type == protocol.MessageType.P2P_OFFER:
                 with printLock:
@@ -683,6 +733,62 @@ def chat_with_group(group_name):  # handles sending
     threading.current_thread().in_group_chat = False  # updates flag
     print(f"\nChat with {group_name} ended.")
 
+def group_media_send(username, group_name, filePath, clientSocket):
+     try:
+         with open(filePath, 'rb') as f:
+             fileData = f.read()
+
+         fileName = os.path.basename(filePath)
+         file_hash = hashlib.md5(fileData).hexdigest()
+         print(f"DEBUG: Original file MD5: {file_hash}")
+         print(f"DEBUG: Original file size: {len(fileData)} bytes")
+
+         sendInfo = ProtocolUtils(
+             headers={
+                "MessageType": protocol.MessageType.DATA,
+                "Message": protocol.Messages.GROUP_MEDIA_META,
+                "Sender": username,
+                "Recipient": group_name,
+                "FileName": fileName,
+                "FileSize": str(len(fileData)),
+                "FileHash": file_hash 
+             },
+             body=b""
+         )
+
+         clientSocket.send(sendInfo.encode())
+         print(f"Sent media metadata for '{fileName}' to group {group_name}")
+
+         #sendinf chunks to sever
+         NumChunks = (len(fileData) + chunkSize - 1)//chunkSize
+
+         for i in range(NumChunks):
+             start = i*chunkSize
+             end = start + chunkSize
+             chunk = fileData[start:end]
+
+             chunkMess = ProtocolUtils(
+                 headers={
+                     "MessageType": protocol.MessageType.DATA,
+                    "Message": protocol.Messages.GROUP_MEDIA_CHUNK,
+                    "Sender": username,
+                    "Recipient": group_name,
+                    "FileName": fileName,
+                    "TotalChunks": str(NumChunks),
+                    "ChunkIndex": str(i),
+                    "ChunkSize": str(len(chunk)) 
+                 },
+                 body=chunk
+            )
+             clientSocket.send(chunkMess.encode())
+             print(f"File '{fileName}' sent to group successfully.")
+
+     except FileNotFoundError:
+         print("File not found.")
+     except Exception as e:
+         print(f"Error sending group media: {e}")
+
+
 if __name__ == '__main__':
     while True:
         login_result = loginToServer()
@@ -728,7 +834,8 @@ while flag:
         print("7. Leave group")
         print("8. Send group chat request to server")
         print("9. Send message to group chat")
-        print("10. Logout")
+        print("10. Send media to group chat")
+        print("11. Logout")
     option = input("\nEnter option number: ")
 
     if option == "1":
@@ -856,6 +963,21 @@ while flag:
             print("No group chats available. Use option 8 to connect to a group first.")
 
     elif option == "10":
+        if groupChats:
+            print("Available group chats:")
+            for gc in groupChats:
+                with printLock:
+                    print(f"- {gc}")
+            group_name = input("Enter groupchat to send media to: ")
+            if group_name in groupChats:
+                filepath = input("Enter path to media file: ")
+                group_media_send(username, group_name, filepath, clientSocket)  # media send to group
+            else:
+                print("Group name not found in your connected groups.")
+        else:
+            print("No group chats available. Use option 8 to connect to a group first.")
+
+    elif option == "11":
     # send logout request to server and close socket
         logout_msg = ProtocolUtils(
         headers={
