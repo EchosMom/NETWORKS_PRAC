@@ -263,53 +263,70 @@ def receive_reply(clientSocket, username):
                     sys.stdout.write(f"[{username}]: ")  # redisplay prompt
                     sys.stdout.flush()        
 
-            if rp.message == protocol.Messages.GROUP_MEDIA_CHUNK:
+            elif rp.message == protocol.Messages.GROUP_MEDIA_CHUNK:
                 sender = rp.sender
                 filename = rp.headers.get("FileName")
                 chunk_index = int(rp.headers.get("ChunkIndex"))
                 total_chunks = int(rp.headers.get("TotalChunks"))
                 group_name = rp.headers.get("GroupName")
-                chunkData = rp.body 
+                chunk_data = rp.body  # Use lowercase for consistency
 
-                #using the same logic fom recive media
-                if isinstance(chunkData, str):
-                     chunkData = chunkData.encode('latin-1')
-    
+                # Add debug print
+                print(f"DEBUG - Received group media chunk {chunk_index+1}/{total_chunks} from {sender}")
+
+                # using the same logic from receive_media
+                if isinstance(chunk_data, str):
+                    chunk_data = chunk_data.encode('latin-1')
+
                 # Strip leading newlines from first chunk
                 if chunk_index == 0:
-                     while chunkData.startswith(b'\n'):
-                        chunkData = chunkData[1:]
-    
+                    while chunk_data.startswith(b'\n'):
+                        chunk_data = chunk_data[1:]
+
                 # Strip trailing bytes if needed
-                correctSize = int(rp.headers.get("ChunkSize", len(chunkData)))
-                if len(chunkData) > correctSize:
-                    chunkData = chunkData[:correctSize]
-    
-                 # Use a different key that includes group name
-                key = (sender, group_name, filename)  # Group context
-    
+                correctSize = int(rp.headers.get("ChunkSize", len(chunk_data)))
+                if len(chunk_data) > correctSize:
+                    chunk_data = chunk_data[:correctSize]
+
+                # Use a key that includes group name
+                key = (sender, group_name, filename)
+
                 with incoming_media_lock:
                     if key not in incoming_media:
                         incoming_media[key] = {
                             'totalChunks': total_chunks,
                             'chunks': [None] * total_chunks,
                             'sender': sender,
-                             'group': group_name,
+                            'group': group_name,
                             'file': filename
-                     }
+                        }
                     entry = incoming_media[key]
-                    entry['chunks'][chunk_index] = chunkData
-        
+                    entry['chunks'][chunk_index] = chunk_data
+
                     if all(chunk is not None for chunk in entry['chunks']):
                         completeData = b''.join(entry['chunks'])
-            
-                         # Save with group context in filename
+
+                        # Save with group context in filename
                         FileBase, FileExt = os.path.splitext(filename)
-                        save_name = f"group_{group_name}_from_{sender}_{FileBase}{FileExt}"
+                        saveName = f"group_{group_name}_from_{sender}_{FileBase}{FileExt}"
+                        print(f"DEBUG - Attempting to save as: {saveName}")
+                        print(f"DEBUG - Current working directory: {os.getcwd()}")
+
+                        try:
+                             with open(saveName, 'wb') as f:
+                                 f.write(completeData)
+                             print(f"DEBUG - File written successfully!")
+                             if os.path.exists(saveName):
+                                file_size = os.path.getsize(saveName)
+                                print(f"DEBUG - Verified file exists, size: {file_size} bytes")
+                             else:
+                                 print(f"DEBUG - ERROR: File does not exist after writing!")
             
-                        with open(save_name, 'wb') as f:
-                            f.write(completeData)
-            
+                        except Exception as e:
+                            print(f"DEBUG - Error saving file: {e}")
+    
+
+
                         print(f"\n[Group Media] Received file '{filename}' from {sender} in group {group_name}")
                         del incoming_media[key]
 
@@ -783,6 +800,7 @@ def group_media_send(username, group_name, filePath, clientSocket):
             )
              clientSocket.send(chunkMess.encode())
              print(f"Sent chunk {i+1}/{NumChunks} to server.")
+             time.sleep(0.01)
 
      except FileNotFoundError:
          print("File not found.")

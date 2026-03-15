@@ -232,8 +232,12 @@ def forward_media_to_target(groupName, sender, filename, chunk_index, total_chun
 
     for m in members:
         if m !=sender:
+            print(f"DEBUG SERVER: Attempting to forward to {m}")
+            found = False
             for sock, info in clientInfo.items():
                 if info.get("username") == m:
+                    found = True
+                    print(f"DEBUG SERVER: Found socket for {m}")
                     chunkMess = ProtocolUtils(
                         headers={
                             "MessageType": protocol.MessageType.DATA,
@@ -249,10 +253,13 @@ def forward_media_to_target(groupName, sender, filename, chunk_index, total_chun
                     )
                     try:
                         sock.send(chunkMess.encode())
-                        print(f"Forwarded media to {groupName}")
+                        print(f"DEBUG SERVER: Successfully sent chunk {chunk_index+1} to {m}")
                     except Exception as e:
-                        print(f"Error media message to {groupName}: ", e)
-                    break
+                        print(f"DEBUG SERVER: Error sending to {m}: {e}")
+                        break  # Found the socket, break inner loop
+        
+            if not found:
+                print(f"DEBUG SERVER: WARNING - Could not find socket for {m}")
 
 
 
