@@ -303,13 +303,13 @@ def receive_reply(clientSocket, username):
                         completeData = b''.join(entry['chunks'])
             
                          # Save with group context in filename
-                        FileBase, FileExt = os.path.splitext(file)
+                        FileBase, FileExt = os.path.splitext(filename)
                         save_name = f"group_{group_name}_from_{sender}_{FileBase}{FileExt}"
             
                         with open(save_name, 'wb') as f:
                             f.write(completeData)
             
-                        print(f"\n[Group Media] Received file '{file}' from {sender} in group {group_name}")
+                        print(f"\n[Group Media] Received file '{filename}' from {sender} in group {group_name}")
                         del incoming_media[key]
 
             elif type == protocol.MessageType.P2P_OFFER:
