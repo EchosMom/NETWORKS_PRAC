@@ -255,6 +255,7 @@ def receive_reply(clientSocket, username):
             if rp.message == protocol.Messages.GROUP_TEXT:
                 sender = rp.sender
                 text = rp.body.decode().strip()
+
                 
                 with printLock:
                     sys.stdout.write("\r" + "" * 80 + "\r")
@@ -263,12 +264,12 @@ def receive_reply(clientSocket, username):
                     sys.stdout.flush()        
 
             if rp.message == protocol.Messages.GROUP_MEDIA_CHUNK:
-                sender = rp,sender
+                sender = rp.sender
                 filename = rp.headers.get("FileName")
                 chunk_index = int(rp.headers.get("ChunkIndex"))
                 total_chunks = int(rp.headers.get("TotalChunks"))
                 group_name = rp.headers.get("GroupName")
-                chunk_data = rp.body 
+                chunkData = rp.body 
 
                 #using the same logic fom recive media
                 if isinstance(chunkData, str):
@@ -781,7 +782,7 @@ def group_media_send(username, group_name, filePath, clientSocket):
                  body=chunk
             )
              clientSocket.send(chunkMess.encode())
-             print(f"File '{fileName}' sent to group successfully.")
+             print(f"Sent chunk {i+1}/{NumChunks} to server.")
 
      except FileNotFoundError:
          print("File not found.")
@@ -832,7 +833,7 @@ while flag:
         print("5. Create group")
         print("6. Join group")
         print("7. Leave group")
-        print("8. Send group chat request to server")
+        print("8. Connect to group")
         print("9. Send message to group chat")
         print("10. Send media to group chat")
         print("11. Logout")

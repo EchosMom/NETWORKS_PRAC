@@ -221,7 +221,14 @@ def forward_to_target(mess):
             break
 
 def forward_media_to_target(groupName, sender, filename, chunk_index, total_chunks, chunk_data):
+    print(f"DEBUG: Forwarding {filename} chunk {chunk_index+1}/{total_chunks} to group {groupName}")
+
     members = getOnlineMember(groupName)
+    print(f"DEBUG: Online members in {groupName}: {members}")
+
+    if not members:  #works safely with empty list
+        print(f"DEBUG SERVER: No online members in group {groupName}")
+        return
 
     for m in members:
         if m !=sender:
@@ -327,20 +334,27 @@ def getMembers(groupName, sender):
             return f"Error: Cannot send group member list to {sender}"
     
 def getOnlineMember(groupName):
-    members = []
-    try:
+     members = []
+     try:
         with open("serverData/groupData.txt", "r") as f:
             for line in f:
                 parts = line.strip().split(":")
-                if parts[1] == groupName:
+                if len(parts) >= 3 and parts[1] == groupName:
                     mems = parts[2].strip().split(",")
+                    print(f"DEBUG SERVER: All members in {groupName}: {mems}")
                     for m in mems:
+                        # Check if member is online
                         for info in clientInfo.values():
-                            if info.get("username")==m:
-                              members.append(m)
-                              break       
-    except:
-        return "Hmm... something went wrong"
+                            if info.get("username") == m:
+                                members.append(m)
+                                print(f"DEBUG SERVER: {m} is online")
+                                break
+                    break
+     except Exception as e:
+        print(f"DEBUG SERVER: Error in getOnlineMember: {e}")
+    
+     print(f"DEBUG SERVER: Returning members: {members}")
+     return members  # Always returns a list (empty if none found)
 
 """remove connected clients"""
 def disconnect_client(sock):
