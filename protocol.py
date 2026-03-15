@@ -55,40 +55,38 @@ class Protocol:
       @staticmethod  # create message from specified protocol
       def encodeMessage(type, message, sender, **kwargs):
          headers = [
-            f"MessageType: {type}",
-            f"Message: {message}",
-            f"Sender: {sender}"
+             f"MessageType: {type}",
+              f"Message: {message}",
+             f"Sender: {sender}"
          ]
 
          # add any additional headers from kwargs
          for key, value in kwargs.items():
-            if key != 'body' :  # body would be a text massage or binary media being sent
-             headers.append(f"{key}: {value}")
-             
-         headers.append("")  # add empty line to indicate end of headers
+             if key != 'body':
+                 headers.append(f"{key}: {value}")
+    
+         headers.append("")  # empty line
          headerString = "\n".join(headers)
+         header_bytes = headerString.encode()
 
-         header_bytes = headerString.encode()  # encode headers to bytes
-
-         # if data message, include body
          body = kwargs.get('body', "")
          if isinstance(body, str):
             body = body.encode()
-        
-         return headerString.encode() + b"\n\n" + body
+    
+         return header_bytes + b"\n\n" + body
                          
       @staticmethod  # divide message into headers and body
       def decodeMessage(data):
         try:
-            parts = data.split(b"\n\n", 1)  # split headers and body at first double newline
-            headerPart = parts[0].decode("utf-8", errors = "ignore")  # decode headers from bytes to string
-            body = parts[1] if len(parts) > 1 else b""  # get body as bytes if it exists
+            parts = data.split(b"\n\n", 1)
+            headerPart = parts[0].decode("utf-8", errors="ignore")
+            body = parts[1] if len(parts) > 1 else b""
 
             headers = {}
-            for line in headerPart.split("\n"):  # split headers into lines and parse key-value pairs
+            for line in headerPart.split("\n"):
                 if ": " in line:
-                    key, value = line.split(": ", 1)
-                    headers[key.strip()] = value.strip()
+                 key, value = line.split(": ", 1)
+                 headers[key.strip()] = value.strip()
             return headers, body
         except Exception as e:
             print(f"Error decoding message: {e}")

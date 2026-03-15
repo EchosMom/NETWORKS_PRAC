@@ -8,14 +8,16 @@ from ClientConnectionManager import ClientConnectionManager
 import random   # going to use random peer port sockets and media port sockets
 import socket
 import threading
+import hashlib
 import protocol
 from ProtocolUtils import ProtocolUtils
+import time         #files failing cos of too much packets sent too fast
 
 serverAddress = "127.0.0.1"  # Localhost
 serverPort = 1500
 peerPort = 1600
 mediaPort = 1700  # for sending media files, UDP_port
-chunkSize = 1400  # bytes per UDP packet
+chunkSize = 64000  # bytes per UDP packet
 mediaSocket = None
 global incoming_media
 incoming_media = {}
@@ -384,7 +386,19 @@ def receive_media(username):  # UDP
                 NumChunks = int(mess.headers.get("TotalChunks"))
                 chunkIndex = int(mess.headers.get("ChunkIndex"))
                 chunkData = mess.body
+                if isinstance(chunkData, str):
+                    chunkData = chunkData.encode('latin-1')
 
+                # striping the newline that encodeMessage adds, first chunk only
+                if chunkIndex == 0:
+                    while chunkData.startswith(b'\n'):
+                        chunkData = chunkData[1:]
+                    print(f"DEBUG - Stripped leading newlines from first chunk")
+
+                #strinpping trailing newlines
+                correctSize = int(mess.headers.get("ChunkSize", len(chunkData)))
+                if len(chunkData) > correctSize:
+                    chunkData = chunkData[:correctSize]
                 print(f"DEBUG - Received chunk {chunkIndex+1}/{NumChunks} from {sender}, size: {len(chunkData)} bytes")
 
                 keys = (sender, file)
@@ -413,11 +427,20 @@ def receive_media(username):  # UDP
                     # checks if all chunks received, cause UDP is unreliable
                     if all (chunk is not None for chunk in entry['chunks']):
                         completeData = b''.join(entry['chunks'])  # put chunks together and save
+                        print(f"DEBUG: Received packet from {addr}")
+                        print(f"DEBUG: From user {sender}, chunk {chunkIndex}/{NumChunks}")
+                        print(f"DEBUG - First 20 bytes received: {completeData[:20]}")
+                        print(f"DEBUG - Last 20 bytes received: {completeData[-20:]}")
+
+
                         FileBase, FileExt = os.path.splitext(file)  # new file to prevent overriidng,[FileBase.FileExt]
                         save_name = f"received_{sender}_{FileBase}{FileExt}"
 
                         with open(save_name, 'wb') as f:
                             f.write(completeData)
+                        saved_size = os.path.getsize(save_name)
+                        print(f"DEBUG: Saved file size: {saved_size} bytes")  
+
                         print(f"\nReceived file '{file}' from {sender}, saved as {save_name}" )
                         del incoming_media[keys]
                         pass
@@ -445,24 +468,25 @@ def send_media(username, p_username, filePath):
         peerSocket = peerConnections[p_username]
         peerIP = peerSocket.getpeername()[0]
         # peerAddress = (peerIP, mediaPort)
-        print(f"DEBUG  -- target peer ip: {peerIP}")
+        
         if p_username not in peerMediaConnections:      #safe check
             print("Peer has no UDP media port registered.")
             return
+        
         peerUDPPort = peerMediaConnections[p_username]
-        print(f"DEBUG ---- Target peer UDP port: {peerUDPPort}")
         peerAddress = (peerIP, peerUDPPort)
 
         # reading file and splitting to chunks
         with open(filePath, 'rb') as f:
             fileData = f.read()
+            print(f"DEBUG - First 20 bytes of original: {fileData[:20]}")
+            print(f"DEBUG - Last 20 bytes of original: {fileData[-20:]}")
+
         NumChunks = (len(fileData)+chunkSize-1)//chunkSize
         fileName = os.path.basename(filePath)
 
         print(f"Sending '{fileName}' to {p_username} ({NumChunks} chunks. . .)")
-        print(f"DEBUG - Sending UDP to: {peerIP}:{peerUDPPort}")
-        import time         #files failing cos of too much packets sent too fast
-        import socket
+       
         
         max_retries = 10
 
@@ -479,7 +503,8 @@ def send_media(username, p_username, filePath):
                 "Recipient": p_username,
                 "File": fileName,
                 "TotalChunks": str(NumChunks),
-                "ChunkIndex": str(i)
+                "ChunkIndex": str(i),
+                "ChunkSize": str(len(chunk))
              }
             mess = ProtocolUtils(headers=headers, body=chunk)
 
@@ -492,17 +517,18 @@ def send_media(username, p_username, filePath):
                         #mediaSocket.settimeout(1.0)   # wait for ACK
 
                         key = (p_username, fileName, str(i))
-                        for _ in range(10):
+                        for _ in range(210):
                             time.sleep(0.1)
                             with pendeing_ack_lock:
                                 if key in pendeing_acks:
                                     ack_received = True
                                     del pendeing_acks[key]
                                     print(f"Chunk {i+1}/{NumChunks} acknowleged")
+                                   
                         if ack_received:
-                            break
+                            break #success
                     
-                        retries +=1
+                        retries +=1 #else try again
                         if retries < max_retries:
                             print(f"Resending chunk {i+1} (attempt {retries+1}/{max_retries})")
                         else:
@@ -515,7 +541,6 @@ def send_media(username, p_username, filePath):
             if not ack_received:
                 print(f"Failed to send chunk {i+1} - no acknowledgment")
                 return
-            time.sleep(0.002)
 
         print(f"File '{fileName}' sent successfully.")
         print("Sending UDP to:", peerIP, peerUDPPort)
@@ -676,8 +701,11 @@ if __name__ == '__main__':
                  args=(clientSocket, username), 
                  daemon=True).start()"""
             mediaSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            #send buffers for speed, larger socket buffer
+            mediaSocket.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 65536)
+            mediaSocket.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 65536)
             mediaSocket.bind(("0.0.0.0", mediaPort))
-            print(f"DEBUG - Receiver bound to port: {mediaSocket.getsockname()[1]}")
+            
             threading.Thread(
                 target=receive_media,
                 args=(username,),
