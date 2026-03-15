@@ -21,6 +21,8 @@ global incoming_media
 incoming_media = {}
 global incoming_media_lock
 incoming_media_lock = threading.Lock()
+pendeing_acks ={} 
+pendeing_ack_lock = threading.Lock()
 printLock = threading.Lock()
 stop_threads = threading.Event()
 peerConnections = {}  # dictionary of client and sockets
@@ -262,6 +264,7 @@ def receive_reply(clientSocket, username):
                 with printLock:
                     print(f"\n{rp.sender} received chat request")
                 ip_port = rp.body.decode().strip()
+                print(f"DEBUG - Received P2P_OFFER with body: {ip_port}")
                 parts= ip_port.split(":")
                 ip = parts[0]
                 port = int(parts[1])
@@ -273,7 +276,7 @@ def receive_reply(clientSocket, username):
 
                 p_username = rp.sender
                 peerMediaConnections[p_username] = peer_media_port
-
+                print(f"DEBUG - Stored media port for {p_username}: {peer_media_port}")
                 with printLock:
                     print(f"Connecting to {p_username}...")
 
@@ -365,7 +368,7 @@ def send_message(username, p_username, mess):
             print("Error: Peer message not sent.", e)
 
 def receive_media(username):  # UDP
-    global mediaSocket
+    global mediaSocket, incoming_media, pendeing_acks
     mediaSocket.settimeout(1.0)
     # print("Receiver listening on:", mediaPort)
     while True:
@@ -382,7 +385,7 @@ def receive_media(username):  # UDP
                 chunkIndex = int(mess.headers.get("ChunkIndex"))
                 chunkData = mess.body
 
-                print(f"Received chunk {chunkIndex+1}/{NumChunks} from {sender}")
+                print(f"DEBUG - Received chunk {chunkIndex+1}/{NumChunks} from {sender}, size: {len(chunkData)} bytes")
 
                 keys = (sender, file)
                 with incoming_media_lock:
@@ -417,6 +420,17 @@ def receive_media(username):  # UDP
                             f.write(completeData)
                         print(f"\nReceived file '{file}' from {sender}, saved as {save_name}" )
                         del incoming_media[keys]
+                        pass
+            elif mess.message == protocol.Messages.MEDIA_ACK:
+                sender = mess.sender
+                fileName = mess.headers.get("File")
+                chunk_index = mess.headers.get("ChunkIndex")
+                key = (sender, fileName, chunk_index)
+
+                with pendeing_ack_lock:
+                    pendeing_acks[key] = True
+                print(f"DEBUG - ACK recorded for {fileName} chunk {chunk_index}")
+
         except socket.timeout:
             continue  # Just continue on timeout
         except Exception as e:
@@ -431,10 +445,12 @@ def send_media(username, p_username, filePath):
         peerSocket = peerConnections[p_username]
         peerIP = peerSocket.getpeername()[0]
         # peerAddress = (peerIP, mediaPort)
+        print(f"DEBUG  -- target peer ip: {peerIP}")
         if p_username not in peerMediaConnections:      #safe check
             print("Peer has no UDP media port registered.")
             return
         peerUDPPort = peerMediaConnections[p_username]
+        print(f"DEBUG ---- Target peer UDP port: {peerUDPPort}")
         peerAddress = (peerIP, peerUDPPort)
 
         # reading file and splitting to chunks
@@ -444,16 +460,17 @@ def send_media(username, p_username, filePath):
         fileName = os.path.basename(filePath)
 
         print(f"Sending '{fileName}' to {p_username} ({NumChunks} chunks. . .)")
-
+        print(f"DEBUG - Sending UDP to: {peerIP}:{peerUDPPort}")
         import time         #files failing cos of too much packets sent too fast
         import socket
         
-        max_retries = 5
+        max_retries = 10
 
         for i in range(NumChunks):
             start = i*chunkSize
             end = start+chunkSize
             chunk = fileData[start:end]
+            print(f"DEBUG - Chunk {i+1} size: {len(chunk)} bytes")
 
             headers = {
                 "MessageType": protocol.MessageType.DATA,
@@ -472,18 +489,19 @@ def send_media(username, p_username, filePath):
             while retries <max_retries and not ack_received:  
                     try:
                         mediaSocket.sendto(mess.encode(), peerAddress)
-                        mediaSocket.settimeout(1.0)   # wait for ACK
+                        #mediaSocket.settimeout(1.0)   # wait for ACK
 
-                        ack_data, _ = mediaSocket.recvfrom(4096)
-                        ack = ProtocolUtils.decode(ack_data)
-
-                        if (ack.message == protocol.Messages.MEDIA_ACK and
-                            ack.headers.get("ChunkIndex") == str(i)):
-                            ack_received = True
-                            print(f"Chunk {i+1}/{NumChunks} acknowledged")
-                            break  # ACK received --> next chunk
-
-                    except socket.timeout:
+                        key = (p_username, fileName, str(i))
+                        for _ in range(10):
+                            time.sleep(0.1)
+                            with pendeing_ack_lock:
+                                if key in pendeing_acks:
+                                    ack_received = True
+                                    del pendeing_acks[key]
+                                    print(f"Chunk {i+1}/{NumChunks} acknowleged")
+                        if ack_received:
+                            break
+                    
                         retries +=1
                         if retries < max_retries:
                             print(f"Resending chunk {i+1} (attempt {retries+1}/{max_retries})")
@@ -659,6 +677,7 @@ if __name__ == '__main__':
                  daemon=True).start()"""
             mediaSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             mediaSocket.bind(("0.0.0.0", mediaPort))
+            print(f"DEBUG - Receiver bound to port: {mediaSocket.getsockname()[1]}")
             threading.Thread(
                 target=receive_media,
                 args=(username,),

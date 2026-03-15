@@ -27,7 +27,7 @@ class Messages:
 
         # control messages
         ACK = "ACK"
-        MEDIA_ACK = 9
+        MEDIA_ACK = "MEDIA_ACK"
         ERROR = "ERROR"
         CHAT_INFO = "CHAT_INFO"
         GET_PEER_UDP_INFO = "GET_PEER_UDP_INFO"
